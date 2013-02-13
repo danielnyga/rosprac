@@ -10,6 +10,12 @@
   <url>http://ros.org/wiki/rosprac</url>
   <depend package="std_msgs"/>
   <depend package="rospy"/>
+  <depend package="rosjava_jni"/>
+  <depend package="knowrob_common"/>
+
+  <export>
+    <java classpath="${prefix}/bin"/>
+  </export>
 
 </package>
 

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd @PRAC_HOME@
+python @ROSPRAC_PATH@/src/rospracinfer.py

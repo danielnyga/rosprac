@@ -1,0 +1,4 @@
+string action_core
+string instruction
+---
+action_role[] roles

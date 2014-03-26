@@ -26,47 +26,67 @@ import roslib; roslib.load_manifest('rosprac')
 
 from rosprac.srv import *
 from rosprac.msg import *
+from rosmln.msg import *
 import rospy
-
-import java
 import os
-import jpype
-from actioncore import PRAC
-from actioncore.inference import *
+import sys
 
+PRAC_HOME = os.environ.get('PRAC_HOME')
+PROBCOG_HOME = os.environ.get('PROBCOG_HOME')
+sys.path.append(PRAC_HOME)
+sys.path.append(os.path.join(PROBCOG_HOME, 'python'))
+
+from rospracutils import DatabasesFromROSMsg
+from prac.core import PRAC
+from prac.inference import PRACInference
+
+import jpype
+import java
+
+java.classpath.append(os.path.join(PRAC_HOME, '3rdparty', 'stanford-parser-2012-02-03', 'stanford-parser.jar'))
+grammarPath = os.path.join(PRAC_HOME, '3rdparty', 'stanford-parser-2012-02-03', 'grammar', 'englishPCFG.ser.gz')
 
 prac = PRAC()
 
 def pracinfer_handler(param):
-    print 'Running PRAC Inference on sentence "%s"' % (param.instruction)
-    
+    if len(param.instructions) > 0:
+        print 'Running PRAC Inference on instructions "%s"' % (param.instructions)
+    if len(param.input_dbs) > 0:
+        for db in param.input_dbs:
+            print db
+        
+    if not java.isJvmRunning():
+        java.startJvm()
     if not jpype.isThreadAttachedToJVM():
         jpype.attachThreadToJVM()
-    pracinit = PRACInit(param.action_core)
-    result = PRACResult()
-    pracinit(param.instruction) >> actionroles >> result 
-    roles = []
+        
+    # setup the inference object
+    infer = PRACInference(prac, param.instructions)
+    module  = prac.getModuleByName(param.pracmodule)
+    module.insertdbs(infer, *list(DatabasesFromROSMsg(prac.mln, *param.input_dbs)))
     
-    for bind in result.pracinference.databases['core'].query('action_role(?w,?r) ^ has_sense(?w, ?s) ^ !is_a(?s, NULL)'):
-        feature = result.pracinference.features.get('wordsenses')
-        senses = feature.words2senses[bind['?w']]
-        tick = senses.index(bind['?s'])
-        roles.append(action_role(bind['?r'], map(lambda x: feature.senses2concepts[x], senses)[tick]))
-    for role in result.pracinference.features.get('missingroles').missingRoles:
-        for bind in result.pracinference.databases['missingroles'].query('action_role(?w,%s) ^ has_sense(?w, ?s) ^ is_a(?s,?c)' % role):
-            roles.append(action_role(role, bind['?c']))
+    # run the module on the inference
+    prac.run(infer, module, **dict(param.params))
+    
+    output_dbs = []
+    for dbs in infer.inference_steps[-1].output_dbs:
+        db_msg = MLNDatabase()
+        atom_prob_pairs = []
+        for atom, value in dbs.evidence.iteritems():
+            pair = AtomProbPair()
+            pair.atom = atom
+            pair.prob = value
+            atom_prob_pairs.append(pair)
+        db_msg.evidence = atom_prob_pairs
+        output_dbs.append(db_msg)
             
-    return (roles,)
-#    for bind in result.pracinference.databases['core'].query('action_role(?w,?r) ^ has_sense(?w,?s) ^ is_a(?s,?c) ^ !(?r=NULL)'):
-#    return ([action_role('ActionVerb', 'flip.v.01'), action_role('Theme', 'pancake.n.01'), action_role('Instrument', 'spatula.n.01')],)
+    return (output_dbs,)
 
 def prac_server():
     rospy.init_node('pracinfer')
-    s = rospy.Service('pracinfer', pracinfer, pracinfer_handler)
+    s = rospy.Service('PRACInfer', PRACInfer, pracinfer_handler)
     print "PRAC service is running. Waiting for queries..."
     rospy.spin()
 
 if __name__ == "__main__":
-    java.startJvm()
     prac_server()
-    java.shutdownJvm()

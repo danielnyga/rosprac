@@ -47,6 +47,7 @@ java.classpath.append(os.path.join(PRAC_HOME, '3rdparty', 'stanford-parser-2012-
 grammarPath = os.path.join(PRAC_HOME, '3rdparty', 'stanford-parser-2012-02-03', 'grammar', 'englishPCFG.ser.gz')
 
 prac = PRAC()
+pub_pracinfer = None
 
 def pracinfer_handler(param):
     if len(param.instructions) > 0:
@@ -59,11 +60,23 @@ def pracinfer_handler(param):
         java.startJvm()
     if not jpype.isThreadAttachedToJVM():
         jpype.attachThreadToJVM()
-        
+
     # setup the inference object
     infer = PRACInference(prac, param.instructions)
     module  = prac.getModuleByName(param.pracmodule)
     module.insertdbs(infer, *list(DatabasesFromROSMsg(prac.mln, *param.input_dbs)))
+
+    # construct the input dbs and publish them
+    for dbs in infer.inference_steps[-1].output_dbs:
+        db_msg = MLNDatabase()
+        atom_prob_pairs = []
+        for atom, value in dbs.evidence.iteritems():
+            pair = AtomProbPair()
+            pair.atom = atom
+            pair.prob = value
+            atom_prob_pairs.append(pair)
+        db_msg.evidence = atom_prob_pairs
+        pub_pracinfer.publish(db_msg)
     
     # run the module on the inference
     prac.run(infer, module, **dict(param.params))
@@ -78,8 +91,26 @@ def pracinfer_handler(param):
             pair.prob = value
             atom_prob_pairs.append(pair)
         db_msg.evidence = atom_prob_pairs
+        pub_pracinfer.publish(db_msg)
         output_dbs.append(db_msg)
-            
+        
+#     for kb in module.kbs:
+#         mln = kb.query_mln
+#         for db in kb.dbs:
+#             mrf = mln.groundMRF(db)
+#             cliques = []
+#             evidence = list(db.evidence.keys())
+#             for f in mrf.gndFormulas:
+#                 clique = MRFClique()
+#                 atoms = sorted(f.getGroundAtoms())
+#                 atoms = map(str, atoms)
+#                 clique.variables = atoms
+#                 cliques.append(clique)
+#             mlnInference = MLNInference()
+#             mlnInference.evidence = evidence
+#             mlnInference.cliques = cliques
+#             pub_pracmln.publish(mlnInference)
+        
     return (output_dbs,)
 
 def prac_server():
@@ -89,4 +120,7 @@ def prac_server():
     rospy.spin()
 
 if __name__ == "__main__":
+    # create the publisher
+    pub_pracinfer = rospy.Publisher('rosprac/pracinfer', MLNDatabase)
+    pub_pracmln = rospy.Publisher('rosprac/pracmln', MLNInference)
     prac_server()

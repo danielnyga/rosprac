@@ -65,7 +65,7 @@ def pracinfer_client():
             atomValue.prob = 1.0
             rosMsg.evidence.append(atomValue)
         
-        result_dbs = pracinfer('senses_and_roles', None, [rosMsg], None)
+        result_dbs = pracinfer('senses_and_roles', 'missing=True', [rosMsg], None)
 
         print result_dbs
     except rospy.ServiceException, e:

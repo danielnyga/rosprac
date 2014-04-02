@@ -79,7 +79,7 @@ def pracinfer_handler(param):
         pub_pracinfer.publish(db_msg)
     
     # run the module on the inference
-    prac.run(infer, module, **dict(param.params))
+    prac.run(infer, module, **eval('dict(%s)' % param.params))
     
     output_dbs = []
     for dbs in infer.inference_steps[-1].output_dbs:

@@ -1,0 +1,5 @@
+build/
+devel/
+src/owl_memory_converter/.gradle/
+src/owl_memory_converter/converter/build/
+src/owl_memory_converter/tasktree/build/

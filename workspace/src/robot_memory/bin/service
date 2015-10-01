@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+import time
+import threading
+import rospy
+import robot_memory.mln_creator as mln_creator
+from std_srvs.srv._Trigger import Trigger, TriggerResponse
+from robot_memory.msg._RobotState import RobotState
+from robot_memory.srv._LearningTrigger import LearningTrigger, LearningTriggerResponse
+
+def main():
+    service = RobotMemoryService()
+    service.run()
+
+class RobotMemoryService:
+
+
+    def __init__(self):
+        self.__mutex = threading.Lock()
+
+    def run(self):
+        rospy.init_node("robot_memory")
+        rospy.Service("robot_memory/start_collecting_training_data", Trigger, self.__start_collecting_training_data)
+        rospy.Service("robot_memory/learn", LearningTrigger, self.__start_learning)
+        rospy.Subscriber("robot_memory/state", RobotState, self.__robot_state_received)
+        rospy.spin()
+
+
+    def __robot_state_received(self, robot_state):
+        with self.__mutex:
+            self.__collected_messages.append(robot_state)
+
+
+    def __start_collecting_training_data(self, request):
+        with self.__mutex:
+            self.__collected_messages = []
+        return TriggerResponse(success=True)
+
+
+    def __start_learning(self, request):
+        with self.__mutex:
+            number_of_received_messages = len(self.__collected_messages)
+        while number_of_received_messages < request.number_of_required_messages:
+            time.sleep(1)
+            with self.__mutex:
+                number_of_received_messages = len(self.__collected_messages)
+        with self.__mutex:
+            learn(self.__collected_messages)
+        return LearningTriggerResponse(success=True)
+
+    
+def learn(state_messages):
+    print("learn with training data" + str(state_messages))
+
+
+if __name__ == "__main__":
+    main()

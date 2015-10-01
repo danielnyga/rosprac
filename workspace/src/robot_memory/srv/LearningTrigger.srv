@@ -1,0 +1,4 @@
+uint64 number_of_required_messages
+---
+bool success
+string message

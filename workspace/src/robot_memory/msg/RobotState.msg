@@ -1,5 +1,6 @@
 uint32 sequence_number
 string task_id
+string task_name
 string goal
 bool finished
 string[] errors

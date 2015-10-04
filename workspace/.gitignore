@@ -3,3 +3,7 @@ devel/
 src/owl_memory_converter/.gradle/
 src/owl_memory_converter/converter/build/
 src/owl_memory_converter/tasktree/build/
+src/owl_memory_converter/.nb-gradle-properties
+src/owl_memory_converter/.nb-gradle/
+src/robot_memory/.idea/
+src/robot_memory/src/robot_memory/*.pyc

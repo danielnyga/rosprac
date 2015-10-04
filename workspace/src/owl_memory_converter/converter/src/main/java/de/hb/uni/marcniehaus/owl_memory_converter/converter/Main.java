@@ -18,10 +18,13 @@ package de.hb.uni.marcniehaus.owl_memory_converter.converter;
 
 import com.google.common.collect.Lists;
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 import org.ros.exception.RemoteException;
 import org.ros.internal.loader.CommandLineLoader;
+import org.ros.internal.message.Message;
 import org.ros.internal.node.topic.SubscriberIdentifier;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
@@ -56,20 +59,21 @@ public class Main extends AbstractNodeMain
             }
             NodeMainExecutor exec = DefaultNodeMainExecutor.newDefault();
             String owlFileName = args[args.length-1];
-            Main conv = new Main(owlFileName);
             ArrayList<String> extendedArgs = Lists.newArrayList(args);
             extendedArgs.remove(extendedArgs.size()-1);
-            extendedArgs.add(conv.getClass().getName());
+            extendedArgs.add(Main.class.getClass().getName());
             CommandLineLoader loader = new CommandLineLoader(extendedArgs);   
             NodeConfiguration config = loader.build();
+            Main conv = new Main(owlFileName, config);
             exec.execute(conv, config);
         } catch(Exception e) {
             e.printStackTrace(System.err);
         }        
     }
     
-    public Main(String owlFileName) {
+    public Main(String owlFileName, NodeConfiguration config) {
         mOwlFileName = owlFileName;
+        mConfig = config;
     }
     
     @Override
@@ -88,18 +92,21 @@ public class Main extends AbstractNodeMain
             OwlConverter converter = new OwlConverter(this);
             converter.convert(mOwlFileName);
             LearningTriggerRequest request = mLearnTrigger.newMessage();
+            connectedNode.getLog().info("Waiting for learner to finish...");
             request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
             LearningTriggerResponse lresponse = mLearnTrigger.call(request);
                         SynchronousService.throwErrorIfTriggerFailed(
                     lresponse.getSuccess(), lresponse.getMessage());
         } catch(Exception e){
-            connectedNode.getLog().fatal("Error!", e);
+            connectedNode.getLog().error("Caught Exception: " + e.getMessage());
+            e.printStackTrace(System.err);
         } finally {
+            connectedNode.getLog().info("Finished! Closing down...");
             closeCommunication();
         }
     }
     
-    private void closeCommunication() {        
+    private void closeCommunication() {      
         System.exit(0);
     }
     
@@ -124,19 +131,23 @@ public class Main extends AbstractNodeMain
                 wait.release();
             }            
         });
-        node.getLog().info("subscriber registered!");
         wait.acquire();
+        node.getLog().info("subscriber registered!");
     }
 
     @Override
-    public RobotState createMessage() {
-        return mStatePublisher.newMessage();
+    public <T extends Message> T createMessage(String name) throws Exception {
+        return mConfig.getTopicMessageFactory().
+                newFromType(name);
     }
 
     @Override
-    public void send(RobotState state) {
+    public void send(RobotState state) throws Exception {
         mStatePublisher.publish(state);
         mNumberOfPublishedStates++;
+        Thread.sleep(1);
+        //Bad workaround, but the message queue size is limited and 
+        //I cannot guarantee transport otherwise...
     }
     
     private static class SynchronousService<Request, Response>{
@@ -173,7 +184,7 @@ public class Main extends AbstractNodeMain
         public static void throwErrorIfTriggerFailed
                 (boolean success, String message) throws Exception{
             if(!success) {
-                throw new Exception("ERROR: " + message);
+                throw new Exception(message);
             }
         }
         
@@ -190,4 +201,5 @@ public class Main extends AbstractNodeMain
             <LearningTriggerRequest, LearningTriggerResponse> mLearnTrigger;
     private long mNumberOfPublishedStates = 0;
     private final String mOwlFileName;
+    private NodeConfiguration mConfig;
 }

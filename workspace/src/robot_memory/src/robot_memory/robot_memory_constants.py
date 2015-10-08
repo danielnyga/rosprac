@@ -13,17 +13,21 @@ class Types:
 
 
 class Predicates:
-    CURRENT_TASK = Predicate("currentTask", 2)
-    CURRENT_TASK_FINISHED = Predicate("currentTaskFinished", 1)
-    CURRENT_PARENT_TASK = Predicate("currentParentTask", 2)
-    NEXT_TASK = Predicate("nextTask", 2)
-    NEXT_TASK_FINISHED = Predicate("nextTaskFisnihed", 1)
-    CHILD_TASK = Predicate("childTask", 2)
-    ERROR = Predicate("error", 2)
-    GOAL = Predicate("goal", 2)
-    PERCEIVED_OBJECT = Predicate("perceivedObject", 2)
-    USED_OBJECT = Predicate("usedObject", 2)
-    OBJECT_PROPERTY = Predicate("objectProperty", 2)
-    OBJECT_TYPE = Predicate("objectType", 2)
-    OBJECT_LOCATION = Predicate("objectLocation", 3)
-    DURATION = Predicate("duration", 2)
+    CURRENT_TASK = Predicate("currentTask", Types.TIME_STEP, -Types.TASK_TYPE)
+    CURRENT_TASK_FINISHED = Predicate("currentTaskFinished", Types.TIME_STEP)
+    CURRENT_PARENT_TASK = Predicate("currentParentTask", Types.TIME_STEP, -Types.TASK_TYPE)
+    NEXT_TASK = Predicate("nextTask", Types.TIME_STEP, -Types.TASK_TYPE)
+    NEXT_TASK_FINISHED = Predicate("nextTaskFisnihed", Types.TIME_STEP)
+    CHILD_TASK = Predicate("childTask", Types.TIME_STEP, Types.TASK_TYPE)
+    ERROR = Predicate("error", Types.TIME_STEP, -Types.ERROR)
+    GOAL = Predicate("goal", Types.TIME_STEP, -Types.GOAL)
+    PERCEIVED_OBJECT = Predicate("perceivedObject", Types.TIME_STEP, Types.OBJECT)
+    USED_OBJECT = Predicate("usedObject", Types.TIME_STEP, Types.OBJECT)
+    OBJECT_PROPERTY = Predicate("objectProperty", Types.OBJECT, Types.OBJECT_PROPERTY)
+    OBJECT_TYPE = Predicate("objectType", Types.OBJECT, -Types.OBJECT_TYPE)
+    OBJECT_LOCATION = Predicate("objectLocation", Types.TIME_STEP, Types.OBJECT, -Types.OBJECT_LOCATION)
+    DURATION = Predicate("duration", Types.TIME_STEP, -Types.DURATION)
+
+    @staticmethod
+    def get_all_predicates():
+        return filter(lambda p: isinstance(p, Predicate), Predicates.__dict__.values())

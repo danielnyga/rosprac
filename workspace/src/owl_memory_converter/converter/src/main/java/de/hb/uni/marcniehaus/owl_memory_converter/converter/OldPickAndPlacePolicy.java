@@ -1,8 +1,12 @@
 package de.hb.uni.marcniehaus.owl_memory_converter.converter;
 
+import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.LogElement;
+import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.OWLLogElement;
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.Task;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import robot_memory.Object;
 
 public class OldPickAndPlacePolicy implements 
@@ -18,8 +22,20 @@ public class OldPickAndPlacePolicy implements
     }
 
     @Override
-    public List<String> getErrors(Task t) {
-        return new LinkedList<>(); //TODO
+    public List<String> getErrors(Task t)  throws Exception {
+        //TODO: Should errors be thrown in child tasks?!
+        LinkedList<String> toReturn = new LinkedList<>();
+        Collection<LogElement> failures = t.getOtherObjectProperties().
+                get("eventFailure");
+        if(failures==null)
+            return toReturn;
+        for(LogElement failure : failures) {
+            if(!(failure instanceof OWLLogElement))
+                throw new Exception("Only errors from OWL are supported!");
+            OWLLogElement error = (OWLLogElement) failure;
+            toReturn.add(error.getOwlClassName());
+        }
+        return toReturn;
     }
 
     @Override

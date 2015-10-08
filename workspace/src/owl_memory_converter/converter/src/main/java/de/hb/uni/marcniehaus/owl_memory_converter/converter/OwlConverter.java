@@ -29,11 +29,13 @@ public class OwlConverter {
     
     public interface TaskTreeConversionPolicy extends 
                                 PreAndPostOrderTaskIterator.IteratorCallback {
-        public boolean isApplicable(Task rootTask);
-        public List<String> getErrors(Task t);
-        public String getGoal(Task t);
-        public List<robot_memory.Object> getObjectsActedOn(Task t);
-        public List<robot_memory.Object> getPerceivedObjects(Task t);
+        public boolean isApplicable(Task rootTask) throws Exception;
+        public List<String> getErrors(Task t) throws Exception;
+        public String getGoal(Task t) throws Exception;
+        public List<robot_memory.Object> getObjectsActedOn(Task t) 
+                throws Exception;
+        public List<robot_memory.Object> getPerceivedObjects(Task t) 
+                throws Exception;
         
     }
     

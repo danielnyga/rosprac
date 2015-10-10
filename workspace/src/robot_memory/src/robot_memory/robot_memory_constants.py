@@ -17,7 +17,7 @@ class Predicates:
     CURRENT_TASK_FINISHED = Predicate("currentTaskFinished", Types.TIME_STEP)
     CURRENT_PARENT_TASK = Predicate("currentParentTask", Types.TIME_STEP, -Types.TASK_TYPE)
     NEXT_TASK = Predicate("nextTask", Types.TIME_STEP, -Types.TASK_TYPE)
-    NEXT_TASK_FINISHED = Predicate("nextTaskFisnihed", Types.TIME_STEP)
+    NEXT_TASK_FINISHED = Predicate("nextTaskFinished", Types.TIME_STEP)
     CHILD_TASK = Predicate("childTask", Types.TIME_STEP, Types.TASK_TYPE)
     ERROR = Predicate("error", Types.TIME_STEP, -Types.ERROR)
     GOAL = Predicate("goal", Types.TIME_STEP, -Types.GOAL)

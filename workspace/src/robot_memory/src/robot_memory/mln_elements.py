@@ -12,7 +12,7 @@ class GroundAtom:
 
     def __str__(self):
         args = str(reduce(lambda s1, s2: str(s1) + "," + str(s2), [c[1] for c in self.__constants]))
-        return ("!" if self.__negated else "") + self.__predicate.get_name() + "(" + args + ")"
+        return ("!" if self.__negated else "") + self.__predicate.name + "(" + args + ")"
 
     def __repr__(self):
         return self.__str__()
@@ -28,16 +28,23 @@ class GroundAtom:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def is_negated(self):
+    @property
+    def negated(self):
         return self.__negated
 
-    def get_predicate(self):
+    @property
+    def predicate(self):
         return self.__predicate
 
     def set_argument_value(self, argument_type, value):
         for pair in self.__constants:
             if pair[0] == argument_type:
                 pair[1] = value
+
+    def get_argument_value(self, argument_type):
+        for pair in self.__constants:
+            if pair[0] == argument_type:
+                return pair[1]
 
 
 class Predicate:
@@ -64,10 +71,12 @@ class Predicate:
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def get_name(self):
+    @property
+    def name(self):
         return self.__predicate_name
 
-    def get_types(self):
+    @property
+    def types(self):
         return self.__types
 
 
@@ -96,7 +105,8 @@ class Type:
     def __hash__(self):
         return self.__type_name.__hash__()
 
-    def get_name(self):
+    @property
+    def name(self):
         return self.__type_name
 
 
@@ -116,28 +126,36 @@ class DatabaseCollection:
     def append(self, database):
         self.__databases.append(database)
 
+    def save(self, name):
+        f = open(name + ".db", 'w')
+        f.write(self.__str__())
+        f.close()
+
 
 class Database:
     def __init__(self):
-        self.__ground_atoms = []
+        self.__ground_atoms = set()
 
     def __iter__(self):
         return iter(self.__ground_atoms)
 
     def __str__(self):
-        return reduce(lambda g1, g2: str(g1) + "\n" + str(g2), self.__ground_atoms)
+        sorted_atoms = list(self.__ground_atoms)
+        sorted_atoms.sort(key=lambda a: a.predicate.name)
+        return str(reduce(lambda g1, g2: str(g1) + "\n" + str(g2), sorted_atoms))
 
     def __repr__(self):
         return self.__str__()
 
     def append(self, ground_atom):
-        self.__ground_atoms.append(ground_atom)
+        self.__ground_atoms.add(ground_atom)
 
 
 class Formula:
-    def __init__(self, weight, ground_atoms):
+    def __init__(self, weight, *ground_atoms):
         self.__weight = weight
-        self.__ground_atoms = deepcopy(ground_atoms)
+        self.__ground_atoms = deepcopy(list(ground_atoms))
+        self.__ground_atoms.sort(key=lambda a: a.predicate.name)
 
     def __str__(self):
         return str(self.__weight) + " " + str(reduce(lambda g1, g2: str(g1) + " ^ " + str(g2), self.__ground_atoms))
@@ -157,14 +175,20 @@ class Formula:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    @property
+    def weight(self):
+        return self.__weight
+
     def add_ground_atom_to_conjunction(self, ground_atom):
         self.__ground_atoms.append(ground_atom)
+        self.__ground_atoms.sort(key=lambda a: a.predicate.name)
 
 
 class MLN:
-    def __init__(self):
+    def __init__(self, name):
         self.__header = []
         self.__formulas = []
+        self.__name = name
 
     def __str__(self):
         header = map(str, self.__header)
@@ -179,5 +203,16 @@ class MLN:
     def append_predicate(self, predicate):
         self.__header.append(predicate)
 
-    def append_formula(self, formula):
-        self.__formulas.append(formula)
+    def append_formulas(self, formulas):
+        self.__formulas+=formulas
+
+    @property
+    def name(self):
+        return self.__name
+
+    def save(self, file_name):
+        if not file_name:
+            file_name = str(self.__name)+".mln"
+        f = open(file_name + ".mln", 'w')
+        f.write(self.__str__())
+        f.close()

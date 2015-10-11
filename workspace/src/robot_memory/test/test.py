@@ -160,6 +160,7 @@ class RobotStateTest:
             RobotState(sequence_number=14,
                        task_id="Displace1",
                        task_name="Displace",
+                       goal="ObjectAtLocation",
                        finished=True,
                        current_time=rospy.Time(26))
         ]

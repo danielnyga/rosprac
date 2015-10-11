@@ -42,7 +42,8 @@ def create_database_collection(preprocessed_states):
             objects.append(object)
         for object in objects:  # TODO: filter duplicate objects
             db.append(Predicates.OBJECT_TYPE(object.object_id, object.object_type))
-            db.append(Predicates.OBJECT_LOCATION(current_time, object.object_id, object.object_location))
+            if object.object_location != "":
+                db.append(Predicates.OBJECT_LOCATION(current_time, object.object_id, object.object_location))
             for prop in object.properties:  # TODO: Change MLN to support property keys
                 db.append(Predicates.OBJECT_PROPERTY(object.object_id, prop.property_value))
     return to_return

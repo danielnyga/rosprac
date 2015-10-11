@@ -65,7 +65,8 @@ def __create_input_output_mln(databases):
     mln = __create_mln_skeleton(MlnType.input_output)
     perception_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT,
                              Predicates.OBJECT_LOCATION, Predicates.OBJECT_TYPE]
-    formulas = __get_formula_templates_from_databases(databases,perception_predicates, perception_predicates)
+    necessary_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT, Predicates.OBJECT_TYPE]
+    formulas = __get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
     formulas += [Formula(0.0, ~Predicates.PERCEIVED_OBJECT("t", "o"))]
     action_predicates = [Predicates.CURRENT_TASK, Predicates.USED_OBJECT, Predicates.OBJECT_TYPE]
     formulas += __get_formula_templates_from_databases(databases, action_predicates, action_predicates)
@@ -150,7 +151,7 @@ def __split_multiple_groundings_of_same_predicate(formulas):
         predicate_count = dict()
         for gnd_atom in formula:
             predicate = gnd_atom.predicate
-            predicate_count[predicate] = 0 if predicate not in predicate_count else predicate_count[predicate]+1
+            predicate_count[predicate] = 1 if predicate not in predicate_count else predicate_count[predicate]+1
         duplicate_predicates = [predicate for predicate, count in predicate_count.items() if count > 1]
         if not duplicate_predicates:
             to_return.append(formula)

@@ -1,12 +1,10 @@
 from copy import deepcopy
-import re
 
 
 class GroundAtom:
     def __init__(self, predicate, constants, negated=False):
         self.__predicate = predicate
-        capital_alphanumeric = lambda string: re.sub("\W", "_", str(typeValuePair[1])).capitalize()
-        self.__constants = [[typeValuePair[0], capital_alphanumeric(typeValuePair[1])] for typeValuePair in constants]
+        self.__constants = [list(typeValuePair) for typeValuePair in constants]
         self.__negated = negated
 
     def __invert__(self):

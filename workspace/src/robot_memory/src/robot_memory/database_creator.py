@@ -1,6 +1,6 @@
-import robot_state_preprocessor
 from mln_elements import DatabaseCollection, Database
 from robot_memory_constants import Predicates
+import re
 
 
 def create_database_collection(preprocessed_states):
@@ -10,42 +10,43 @@ def create_database_collection(preprocessed_states):
         db = Database()
         to_return.append(db)
         current_time = preprocessed_state.current_time.secs
-        db.append(Predicates.CURRENT_TASK(current_time, preprocessed_state.task_name))
+        db.append(Predicates.CURRENT_TASK(current_time, __escape(preprocessed_state.task_name)))
         if preprocessed_state.finished:
             db.append(Predicates.CURRENT_TASK_FINISHED(current_time))
         else:
             db.append(~Predicates.CURRENT_TASK_FINISHED(current_time))
         if preprocessed_state.parent_state:
-            db.append(Predicates.CURRENT_PARENT_TASK(current_time, preprocessed_state.parent_state.task_name))
+            db.append(Predicates.CURRENT_PARENT_TASK(current_time, __escape(preprocessed_state.parent_state.task_name)))
         if preprocessed_state.next_state is not None:
-            db.append(Predicates.NEXT_TASK(current_time, preprocessed_state.next_state.task_name))
+            db.append(Predicates.NEXT_TASK(current_time, __escape(preprocessed_state.next_state.task_name)))
         if preprocessed_state.next_state is not None:
             if preprocessed_state.next_state.finished:
                 db.append(Predicates.NEXT_TASK_FINISHED(current_time))
             else:
                 db.append(~Predicates.NEXT_TASK_FINISHED(current_time))
         for child in preprocessed_state.child_states:
-            db.append(Predicates.CHILD_TASK(current_time, child.task_name))
+            db.append(Predicates.CHILD_TASK(current_time, __escape(child.task_name)))
         if len(preprocessed_state.errors) > 1:
             raise Exception("More than one error is currently not supported!")  # TODO: Change MLN!
         elif len(preprocessed_state.errors) == 1:
-            db.append(Predicates.ERROR(current_time, preprocessed_state.errors[0]))
+            db.append(Predicates.ERROR(current_time, __escape(preprocessed_state.errors[0])))
         if preprocessed_state.goal != "":
-            db.append(Predicates.GOAL(current_time, preprocessed_state.goal))
-        db.append(Predicates.DURATION(current_time, preprocessed_state.abstract_duration))
+            db.append(Predicates.GOAL(current_time, __escape(preprocessed_state.goal)))
+        db.append(Predicates.DURATION(current_time, __escape(preprocessed_state.abstract_duration)))
         objects = []
         for object in preprocessed_state.perceived_objects:
-            db.append(Predicates.PERCEIVED_OBJECT(current_time, object.object_id))
+            db.append(Predicates.PERCEIVED_OBJECT(current_time, __escape(object.object_id)))
             objects.append(object)
         for object in preprocessed_state.objects_acted_on:
-            db.append(Predicates.USED_OBJECT(current_time, object.object_id))
+            db.append(Predicates.USED_OBJECT(current_time, __escape(object.object_id)))
             objects.append(object)
         for object in objects:  # TODO: filter duplicate objects
-            db.append(Predicates.OBJECT_TYPE(object.object_id, object.object_type))
+            db.append(Predicates.OBJECT_TYPE(__escape(object.object_id), __escape(object.object_type)))
             if object.object_location != "":
-                db.append(Predicates.OBJECT_LOCATION(current_time, object.object_id, object.object_location))
+                db.append(Predicates.OBJECT_LOCATION(
+                    current_time, __escape(object.object_id), __escape(object.object_location)))
             for prop in object.properties:  # TODO: Change MLN to support property keys
-                db.append(Predicates.OBJECT_PROPERTY(object.object_id, prop.property_value))
+                db.append(Predicates.OBJECT_PROPERTY(__escape(object.object_id), __escape(prop.property_value)))
     return to_return
 
 
@@ -60,3 +61,7 @@ def __remove_duplicate_leaf_nodes(preprocessed_states):
                 preprocessed_state.finished = True
         to_return.append(preprocessed_state)
     return  to_return
+
+
+def __escape(string):
+    return re.sub("\W", "_", str(string)).capitalize()

@@ -45,8 +45,9 @@ def create_database_collection(preprocessed_states):
             if object.object_location != "":
                 db.append(Predicates.OBJECT_LOCATION(
                     current_time, __escape(object.object_id), __escape(object.object_location)))
-            for prop in object.properties:  # TODO: Change MLN to support property keys
-                db.append(Predicates.OBJECT_PROPERTY(__escape(object.object_id), __escape(prop.property_value)))
+            for prop in object.properties:
+                db.append(Predicates.OBJECT_PROPERTY(__escape(object.object_id), __escape(prop.property_name),
+                                                     __escape(prop.property_value)))
     return to_return
 
 

@@ -1,17 +1,17 @@
 from copy import deepcopy
 
 
-class GroundAtom:
+class GroundAtom(object):
     def __init__(self, predicate, constants, negated=False):
         self.__predicate = predicate
-        self.__constants = [list(typeValuePair) for typeValuePair in constants]
+        self._constants = [list(typeValuePair) for typeValuePair in constants]
         self.__negated = negated
 
     def __invert__(self):
-        return GroundAtom(self.__predicate, self.__constants, not self.__negated)
+        return GroundAtom(self.__predicate, self._constants, not self.__negated)
 
     def __str__(self):
-        args = str(reduce(lambda s1, s2: str(s1) + "," + str(s2), [c[1] for c in self.__constants]))
+        args = str(reduce(lambda s1, s2: str(s1) + "," + str(s2), [c[1] for c in self._constants]))
         return ("!" if self.__negated else "") + self.__predicate.name + "(" + args + ")"
 
     def __repr__(self):
@@ -19,11 +19,11 @@ class GroundAtom:
 
     def __hash__(self):
         return self.__predicate.__hash__() + self.__negated.__hash__() + \
-            tuple([tuple(pair) for pair in self.__constants]).__hash__()
+            tuple([tuple(pair) for pair in self._constants]).__hash__()
 
     def __eq__(self, other):
         return (self.__predicate == other.__predicate) and (self.__negated == other.__negated) and \
-               (self.__constants == other.__constants)
+               (self._constants == other._constants)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -37,17 +37,17 @@ class GroundAtom:
         return self.__predicate
 
     def set_argument_value(self, argument_type, value):
-        for pair in self.__constants:
+        for pair in self._constants:
             if pair[0] == argument_type:
                 pair[1] = value
 
     def get_argument_value(self, argument_type):
-        for pair in self.__constants:
+        for pair in self._constants:
             if pair[0] == argument_type:
                 return pair[1]
 
 
-class Predicate:
+class Predicate(object):
     def __init__(self, predicate_name, *predicate_types):
         self.__predicate_name = predicate_name
         self.__types = predicate_types
@@ -80,7 +80,7 @@ class Predicate:
         return self.__types
 
 
-class Type:
+class Type(object):
     def __init__(self, type_name, is_soft_functional=False):
         self.__type_name = type_name
         self.__is_soft_functional = is_soft_functional
@@ -110,7 +110,7 @@ class Type:
         return self.__type_name
 
 
-class DatabaseCollection:
+class DatabaseCollection(object):
     def __init__(self):
         self.__databases = []
 
@@ -132,7 +132,7 @@ class DatabaseCollection:
         f.close()
 
 
-class Database:
+class Database(object):
     def __init__(self):
         self.__ground_atoms = set()
 
@@ -151,10 +151,39 @@ class Database:
         self.__ground_atoms.add(ground_atom)
 
 
-class Formula:
+class FormulaGroundAtom(GroundAtom):
+    def __init__(self, gnd_atom):
+        GroundAtom.__init__(self, gnd_atom.predicate, [const for const in gnd_atom._constants], gnd_atom.negated)
+        self.__apply_expand_operator = False
+
+    def __eq__(self, other):
+        return GroundAtom.__eq__(self, other) and self.__apply_expand_operator == other.__apply_expand_operator
+
+    def __ne__(self, other):
+        return not self.__eq__()
+
+    def __hash__(self):
+        return GroundAtom.__hash__(self) + self.__apply_expand_operator.__hash__()
+
+    def __str__(self):
+        return ("*" if self.__apply_expand_operator else "") + GroundAtom.__str__(self)
+
+    def __repr__(self):
+        return str(self)
+
+    @property
+    def apply_expand_operator(self):
+        return self.__apply_expand_operator
+
+    @apply_expand_operator.setter
+    def apply_expand_operator(self, value):
+        self.__apply_expand_operator = value
+
+
+class Formula(object):
     def __init__(self, weight, *ground_atoms):
         self.__weight = weight
-        self.__ground_atoms = deepcopy(list(ground_atoms))
+        self.__ground_atoms = [FormulaGroundAtom(g) for g in ground_atoms]
         self.__ground_atoms.sort(key=lambda a: a.predicate.name)
 
     def __str__(self):
@@ -184,7 +213,7 @@ class Formula:
         self.__ground_atoms.sort(key=lambda a: a.predicate.name)
 
 
-class MLN:
+class MLN(object):
     def __init__(self, name):
         self.__header = []
         self.__formulas = []

@@ -7,7 +7,7 @@ import pracmln_adapter
 from itertools import groupby
 
 
-class MlnType:
+class MlnType(object):
     state_machine = "StateMachine"
     task = "Task"
     object = "Object"
@@ -81,10 +81,10 @@ def __create_object_mln(databases):
     mln = __create_mln_skeleton(MlnType.object)
     property_predicates = [Predicates.PERCEIVED_OBJECT, Predicates.OBJECT_TYPE, Predicates.OBJECT_PROPERTY]
     formulas = __get_formula_templates_from_databases(databases, property_predicates, property_predicates)
-    formulas += [Formula(0.0, ~Predicates.OBJECT_PROPERTY("o", "p"))]
     formulas = __split_objects_of_different_type(formulas, Types.OBJECT)
     formulas = __split_multiple_groundings_of_same_predicate(formulas)
     formulas = __apply_replacements(formulas, [(Types.TIME_STEP, "t"), (Types.OBJECT, "o")])
+    formulas = __add_expand_operator(formulas, [Predicates.OBJECT_PROPERTY])
     mln.append_formulas(formulas)
     return mln
 
@@ -177,3 +177,11 @@ def __split_objects_of_different_type(formulas, type_to_split):
         for _, group in groupby(atoms_with_type, key=lambda atom: atom.get_argument_value(type_to_split)):
             to_return.append(Formula(formula.weight, *(atoms_without_type + list(group))))
     return to_return
+
+
+def __add_expand_operator(formulas, predicates_with_star_operator):
+    for formula in formulas:
+        for ground_atom in formula:
+            if ground_atom.predicate in predicates_with_star_operator:
+                ground_atom.apply_expand_operator = True
+    return formulas

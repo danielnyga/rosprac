@@ -2,7 +2,7 @@ from genpy.rostime import Duration
 from robot_memory.msg import RobotState
 
 
-class AbstractDuration:
+class AbstractDuration(object):
     short = "Short"
     long = "Long"
     medium = "Medium"

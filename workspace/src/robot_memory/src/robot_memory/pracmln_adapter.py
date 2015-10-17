@@ -4,7 +4,7 @@ from pracmln.mln.database import Database, parse_db
 from StringIO import StringIO
 
 LOGIC = "FirstOrderLogic"
-GRAMMAR = "StandardGrammar"
+GRAMMAR = "PRACGrammar"
 LEARNING_METHOD = LearningMethods.BPLL
 
 

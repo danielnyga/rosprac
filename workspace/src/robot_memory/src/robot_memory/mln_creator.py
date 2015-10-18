@@ -23,9 +23,9 @@ def create_and_save_mlns(robot_state_messages, debug=False):
     dbs = database_creator.create_database_collection(preprocessed_messages)
     mlns = [
         _create_state_machine_mln(dbs),
-        #_create_task_mln(dbs),
-        #__create_input_output_mln(dbs),
-        #_create_object_mln(dbs)
+        _create_task_mln(dbs),
+        _create_input_output_mln(dbs),
+        _create_object_mln(dbs)
     ]
 
     if not os.path.isdir(_FILENAME_PREFIX):
@@ -46,17 +46,13 @@ def _create_state_machine_mln(databases):
     formulas = _get_formula_templates_from_databases(databases, state_machine_predicates, [Predicates.NEXT_TASK])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
     formulas = _add_not_error_atom_if_necessary(formulas)
-    formulas = _merge_lines_in_state_machine(formulas, [Predicates.NEXT_TASK_FINISHED,
-                                                        Predicates.NEXT_TASK, Predicates.NEXT_PARAMETER])
+    formulas = _remove_duplicate_error_formulas(formulas)
     mln.append_formulas(formulas)
     return mln
 
 
 def _create_task_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK)
-    # parameter_predicates = [Predicates.CURRENT_PARAMETER, Predicates.CURRENT_TASK]
-    # formulas = _get_formula_templates_from_databases(databases, parameter_predicates, parameter_predicates)
-    # formulas += [Formula(0.0, ~Predicates.CURRENT_PARAMETER("?t", "?k", "?v"))]
     formulas = []
     child_predicates = [Predicates.CURRENT_TASK, Predicates.CHILD_TASK, Predicates.CURRENT_PARAMETER]
     formulas += _get_formula_templates_from_databases(databases, child_predicates, child_predicates)
@@ -73,7 +69,7 @@ def _create_task_mln(databases):
     return mln
 
 
-def __create_input_output_mln(databases):
+def _create_input_output_mln(databases):
     mln = _create_mln_skeleton(MlnType.INPUT_OUTPUT)
     perception_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT,
                              Predicates.OBJECT_LOCATION, Predicates.OBJECT_TYPE]
@@ -147,13 +143,41 @@ def _add_not_error_atom_if_necessary(formulas):
             raise Exception("Only one error is currently supported!")
         else:
             error = errors[0]
-        predicates_to_remove = {Predicates.ERROR, Predicates.NEXT_TASK, Predicates.NEXT_TASK_FINISHED}
+        predicates_to_remove = {Predicates.ERROR, Predicates.NEXT_TASK,
+                                Predicates.NEXT_TASK_FINISHED, Predicates.NEXT_PARAMETER}
         remove_error_next = lambda f: filter(lambda g: g.predicate not in predicates_to_remove, f)
         formulas_are_similar = lambda pre_process, f: pre_process(f) == pre_process(error_formula) and error not in f
         similar_formulas = filter(partial(formulas_are_similar, remove_error_next), formulas)
         for similar_formula in similar_formulas:
             similar_formula.add_ground_atom_to_conjunction(~error)
     return formulas
+
+
+def _remove_duplicate_error_formulas(formulas):
+    to_return = formulas
+    target_state_predicates = {Predicates.NEXT_TASK, Predicates.NEXT_TASK_FINISHED, Predicates.NEXT_PARAMETER}
+    formulas = filter(lambda f: Predicates.ERROR in [gnd_atom.predicate for gnd_atom in f], formulas)
+    target_predicates_in_formula = lambda f: str(filter(lambda g: g.predicate in target_state_predicates, f))
+    formulas.sort(key=target_predicates_in_formula)
+    groups = groupby(formulas, key=target_predicates_in_formula)
+    groups = [[(formula, set(formula)) for formula in group] for _, group in groups]
+    for group in groups:
+        for formula_set_pair in group:
+            formula = formula_set_pair[0]
+            predicate_is_not_error_or_target = lambda p: p!=Predicates.ERROR and p not in target_state_predicates
+            formula_without_error = set(filter(lambda gnd: predicate_is_not_error_or_target(gnd.predicate), formula))
+            formula_is_unique_without_error = True
+            for other_group in groups:
+                if other_group == group:
+                    continue
+                for formula_and_set_from_other_group in other_group:
+                    other_formula_set = formula_and_set_from_other_group[1]
+                    if other_formula_set.issuperset(formula_without_error):
+                        formula_is_unique_without_error = False
+            if formula_is_unique_without_error:
+                for error_atom in filter(lambda gnd_atom: gnd_atom.predicate==Predicates.ERROR, formula):
+                    formula.remove_ground_atom_from_conjunction(error_atom)
+    return list(set(to_return))
 
 
 def _split_multiple_groundings_of_same_predicate(formulas):
@@ -196,32 +220,3 @@ def _add_expand_operator(formulas, predicates_with_star_operator):
             if ground_atom.predicate in predicates_with_star_operator:
                 ground_atom.apply_expand_operator = True
     return formulas
-
-
-#TODO:Next function is highly inefficient code - The Quine-McCluskey does nearly the same...
-def _merge_lines_in_state_machine(formulas, target_state_predicates):
-    print("Start profiling")
-    target_predicates_in_formula = lambda f: str(filter(lambda g: g.predicate in target_state_predicates, f))
-    formulas.sort(key=target_predicates_in_formula)
-    groups = groupby(formulas, key=target_predicates_in_formula)
-    groups = [[(formula, set(formula)) for formula in group] for _, group in groups]
-    for group in groups:
-        for formula_set_pair in group:
-            formula = formula_set_pair[0]
-            non_target_state_atoms = filter(lambda atom: atom.predicate not in target_state_predicates, formula)
-            for ground_atom in non_target_state_atoms:
-                rest = set(non_target_state_atoms)
-                rest.remove(ground_atom)
-                rest_atoms_appear_in_formulas_of_other_groups = True
-                for other_group in groups:
-                    if other_group==group:
-                        continue
-                    for formula_and_set_from_other_group in other_group:
-                        other_formula_set = formula_and_set_from_other_group[1]
-                        if other_formula_set.issuperset(rest):
-                            rest_atoms_appear_in_formulas_of_other_groups = False
-                if not rest_atoms_appear_in_formulas_of_other_groups:
-                    non_target_state_atoms.remove(ground_atom)
-                    formula.remove_ground_atom_from_conjunction(ground_atom)
-    print("finished profiling")
-    return list(set(formulas))

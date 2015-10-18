@@ -17,8 +17,12 @@ def create_database_collection(preprocessed_states):
             db.append(~Predicates.CURRENT_TASK_FINISHED(current_time))
         if preprocessed_state.parent_state:
             db.append(Predicates.CURRENT_PARENT_TASK(current_time, __escape(preprocessed_state.parent_state.task_name)))
+            for parameter in preprocessed_state.parent_state.parameters:
+                db.append(Predicates.PARENT_PARAMETER(current_time, __escape(parameter.name),__escape(parameter.value)))
         if preprocessed_state.next_state is not None:
             db.append(Predicates.NEXT_TASK(current_time, __escape(preprocessed_state.next_state.task_name)))
+            for parameter in preprocessed_state.next_state.parameters:
+                db.append(Predicates.NEXT_PARAMETER(current_time, __escape(parameter.name), __escape(parameter.value)))
         if preprocessed_state.next_state is not None:
             if preprocessed_state.next_state.finished:
                 db.append(Predicates.NEXT_TASK_FINISHED(current_time))
@@ -30,7 +34,7 @@ def create_database_collection(preprocessed_states):
             db.append(Predicates.ERROR(current_time, __escape(preprocessed_state.error)))
         db.append(Predicates.DURATION(current_time, __escape(preprocessed_state.abstract_duration)))
         for parameter in preprocessed_state.parameters:
-            db.append(Predicates.PARAMETER(current_time, __escape(parameter.name), __escape(parameter.value)))
+            db.append(Predicates.CURRENT_PARAMETER(current_time, __escape(parameter.name), __escape(parameter.value)))
         objects = []
         for object in preprocessed_state.perceived_objects:
             db.append(Predicates.PERCEIVED_OBJECT(current_time, __escape(object.object_id)))

@@ -212,6 +212,9 @@ class Formula(object):
         self.__ground_atoms.append(ground_atom)
         self.__ground_atoms.sort(key=lambda a: a.predicate.name)
 
+    def remove_ground_atom_from_conjunction(self, ground_atom):
+        self.__ground_atoms.remove(ground_atom)
+
 
 class MLN(object):
     def __init__(self, name):

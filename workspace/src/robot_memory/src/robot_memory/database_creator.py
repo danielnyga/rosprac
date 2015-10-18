@@ -26,18 +26,16 @@ def create_database_collection(preprocessed_states):
                 db.append(~Predicates.NEXT_TASK_FINISHED(current_time))
         for child in preprocessed_state.child_states:
             db.append(Predicates.CHILD_TASK(current_time, __escape(child.task_name)))
-        if len(preprocessed_state.errors) > 1:
-            raise Exception("More than one error is currently not supported!")  # TODO: Change MLN!
-        elif len(preprocessed_state.errors) == 1:
-            db.append(Predicates.ERROR(current_time, __escape(preprocessed_state.errors[0])))
-        if preprocessed_state.goal != "":
-            db.append(Predicates.GOAL(current_time, __escape(preprocessed_state.goal)))
+        if preprocessed_state.error != "":
+            db.append(Predicates.ERROR(current_time, __escape(preprocessed_state.error)))
         db.append(Predicates.DURATION(current_time, __escape(preprocessed_state.abstract_duration)))
+        for parameter in preprocessed_state.parameters:
+            db.append(Predicates.PARAMETER(current_time, __escape(parameter.name), __escape(parameter.value)))
         objects = []
         for object in preprocessed_state.perceived_objects:
             db.append(Predicates.PERCEIVED_OBJECT(current_time, __escape(object.object_id)))
             objects.append(object)
-        for object in preprocessed_state.objects_acted_on:
+        for object in preprocessed_state.used_objects:
             db.append(Predicates.USED_OBJECT(current_time, __escape(object.object_id)))
             objects.append(object)
         for object in objects:  # TODO: filter duplicate objects
@@ -46,8 +44,8 @@ def create_database_collection(preprocessed_states):
                 db.append(Predicates.OBJECT_LOCATION(
                     current_time, __escape(object.object_id), __escape(object.object_location)))
             for prop in object.properties:
-                db.append(Predicates.OBJECT_PROPERTY(__escape(object.object_id), __escape(prop.property_name),
-                                                     __escape(prop.property_value)))
+                db.append(Predicates.OBJECT_PROPERTY(__escape(object.object_id), __escape(prop.name),
+                                                     __escape(prop.value)))
     return to_return
 
 

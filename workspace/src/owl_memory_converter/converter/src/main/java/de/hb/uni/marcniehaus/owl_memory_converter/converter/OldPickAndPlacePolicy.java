@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import robot_memory.Object;
-import robot_memory.ObjectProperty;
+import robot_memory.Tuple;
 
 public class OldPickAndPlacePolicy implements 
         OwlConverter.TaskTreeConversionPolicy {
@@ -27,9 +27,9 @@ public class OldPickAndPlacePolicy implements
     }
 
     @Override
-    public List<String> getErrors(Task t)  throws Exception {
+    public String getErrors(Task t)  throws Exception {
         //TODO: Should errors be thrown in child tasks?!
-        LinkedList<String> toReturn = new LinkedList<>();
+        String toReturn = null;
         Collection<LogElement> failures = t.getOtherObjectProperties().
                 get("eventFailure");
         if(failures==null) {
@@ -39,25 +39,46 @@ public class OldPickAndPlacePolicy implements
             if(!(failure instanceof OWLLogElement))
                 throw new Exception("Only errors from OWL are supported!");
             OWLLogElement error = (OWLLogElement) failure;
-            toReturn.add(error.getOwlClassName());
+            if(toReturn==null) {
+                toReturn=error.getOwlClassName();
+            } else {
+                throw new Exception("Only one error at a time is supported!");
+            }
         }
         return toReturn;
     }
 
     @Override
-    public String getGoal(Task t) throws Exception {
-        Collection<String> goal = t.getOtherDataProperties().get("goalContext");
-        if(goal==null) {
-            return "";
+    public List<Tuple> getParameters(Task t) throws Exception {
+//        Collection<String> goal = t.getOtherDataProperties().get("goalContext");
+//        if(goal==null) {
+//            return "";
+//        }
+//        if(goal.size()>1) {
+//            throw new Exception("Only one goal is supported!");
+//        }
+//        return goal.iterator().next();
+        List<Tuple> toReturn = new LinkedList<>();
+        for(Map.Entry<String, Collection<String>> entry :
+                t.getOtherDataProperties().entrySet()) {
+            if(entry.getKey().equals("OWLName") ||
+                    entry.getKey().equals("taskContext") ||
+                    entry.getKey().equals("OWLClassName")) {
+                continue;
+            }
+            if(entry.getValue().size()!=1) {
+                throw new Exception("Only properties with size 1 are supported!");
+            }
+            Tuple tuple = mMessageFactory.createMessage(Tuple._TYPE);
+            tuple.setName(entry.getKey());
+            tuple.setValue(entry.getValue().iterator().next());
+            toReturn.add(tuple);
         }
-        if(goal.size()>1) {
-            throw new Exception("Only one goal is supported!");
-        }
-        return goal.iterator().next();
+        return toReturn;
     }
 
     @Override
-    public List<Object> getObjectsActedOn(Task t) throws Exception {
+    public List<Object> getUsedObjects(Task t) throws Exception {
         List<Object> toReturn = new LinkedList<>();
         Collection<LogElement> action = 
                 t.getOtherObjectProperties().get("objectActedOn");
@@ -185,7 +206,7 @@ public class OldPickAndPlacePolicy implements
             LogElement designator, Set<String> excludedPropertyKeys, 
             Set<String> excludedPropertyValues) throws Exception {
         Object o = mMessageFactory.createMessage(Object._TYPE);
-        LinkedList<ObjectProperty> properties = new LinkedList<>();
+        LinkedList<Tuple> properties = new LinkedList<>();
         o.setProperties(properties);
         for(Map.Entry<String, Collection<String>> propertyGroup : 
                 designator.getOtherDataProperties().entrySet()) {
@@ -201,11 +222,11 @@ public class OldPickAndPlacePolicy implements
                     !excludedPropertyKeys.contains(propertyGroup.getKey())){
                 for(String propertyValue : propertyGroup.getValue()) {
                     if(!excludedPropertyValues.contains(propertyValue)) {
-                        ObjectProperty prop = mMessageFactory.
-                                createMessage(ObjectProperty._TYPE);
+                        Tuple prop = mMessageFactory.
+                                createMessage(Tuple._TYPE);
                         properties.add(prop);
-                        prop.setPropertyName(propertyGroup.getKey());
-                        prop.setPropertyValue(propertyValue);   
+                        prop.setName(propertyGroup.getKey());
+                        prop.setValue(propertyValue);
                     }                       
                 }
             }

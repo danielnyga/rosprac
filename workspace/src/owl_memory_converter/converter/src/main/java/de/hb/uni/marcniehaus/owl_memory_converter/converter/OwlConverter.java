@@ -30,9 +30,9 @@ public class OwlConverter {
     public interface TaskTreeConversionPolicy extends 
                                 PreAndPostOrderTaskIterator.IteratorCallback {
         public boolean isApplicable(Task rootTask) throws Exception;
-        public List<String> getErrors(Task t) throws Exception;
-        public String getGoal(Task t) throws Exception;
-        public List<robot_memory.Object> getObjectsActedOn(Task t) 
+        public String getErrors(Task t) throws Exception;
+        public List<robot_memory.Tuple> getParameters(Task t) throws Exception;
+        public List<robot_memory.Object> getUsedObjects(Task t)
                 throws Exception;
         public List<robot_memory.Object> getPerceivedObjects(Task t) 
                 throws Exception;
@@ -67,10 +67,13 @@ public class OwlConverter {
         toReturn.setTaskId(iterator.current().getOwlInstanceName());
         toReturn.setSequenceNumber(sequenceNumber);
         toReturn.setTaskName(iterator.current().getContext());
-        toReturn.setErrors(conversionPolicy.getErrors(iterator.current()));
-        toReturn.setGoal(conversionPolicy.getGoal(iterator.current()));
-        toReturn.setObjectsActedOn(
-                conversionPolicy.getObjectsActedOn(iterator.current()));
+        String error = conversionPolicy.getErrors(iterator.current());
+        if(error!=null) {
+            toReturn.setError(error);
+        }
+        toReturn.setParameters(conversionPolicy.getParameters(iterator.current()));
+        toReturn.setUsedObjects(
+                conversionPolicy.getUsedObjects(iterator.current()));
         toReturn.setPerceivedObjects(
                 conversionPolicy.getPerceivedObjects(iterator.current()));
         

@@ -5,105 +5,112 @@ from mln_elements import MLN, Formula
 from functools import partial
 import pracmln_adapter
 from itertools import groupby
+import os
+
+
+_FILENAME_PREFIX = "learnt_mlns/"
 
 
 class MlnType(object):
-    state_machine = "StateMachine"
-    task = "Task"
-    object = "Object"
-    input_output = "InputOutput"
+    STATE_MACHINE = "StateMachine"
+    TASK = "Task"
+    OBJECT = "Object"
+    INPUT_OUTPUT = "InputOutput"
 
 
 def create_and_save_mlns(robot_state_messages, debug=False):
     preprocessed_messages = robot_state_preprocessor.extract_additional_relations(robot_state_messages)
     dbs = database_creator.create_database_collection(preprocessed_messages)
     mlns = [
-        __create_state_machine_mln(dbs),
-        __create_task_mln(dbs),
+        _create_state_machine_mln(dbs),
+        _create_task_mln(dbs),
         __create_input_output_mln(dbs),
-        __create_object_mln(dbs)
+        _create_object_mln(dbs)
     ]
+
+    if not os.path.isdir(_FILENAME_PREFIX):
+        os.mkdir(_FILENAME_PREFIX)
     if debug:
         for mln in mlns:
-            mln.save(mln.name + "_before_learning")
-        dbs.save("train")
+            mln.save(_FILENAME_PREFIX + mln.name + "_before_learning")
+        dbs.save(_FILENAME_PREFIX + "train")
     for mln in mlns:
-        __learn_weights_and_save_mln(mln, dbs)
+        _learn_weights_and_save_mln(mln, dbs)
 
 
-def __create_state_machine_mln(databases):
-    mln = __create_mln_skeleton(MlnType.state_machine)
+def _create_state_machine_mln(databases):
+    mln = _create_mln_skeleton(MlnType.STATE_MACHINE)
     state_machine_predicates = [Predicates.CURRENT_TASK_FINISHED, Predicates.CURRENT_TASK, Predicates.ERROR,
                                 Predicates.CURRENT_PARENT_TASK, Predicates.NEXT_TASK, Predicates.NEXT_TASK_FINISHED]
-    formulas = __get_formula_templates_from_databases(databases, state_machine_predicates, [Predicates.NEXT_TASK])
-    formulas = __apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
-    __add_not_error_atom_if_necessary(formulas)
+    formulas = _get_formula_templates_from_databases(databases, state_machine_predicates, [Predicates.NEXT_TASK])
+    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
+    _add_not_error_atom_if_necessary(formulas)
     mln.append_formulas(formulas)
     return mln
 
 
-def __create_task_mln(databases):
-    mln = __create_mln_skeleton(MlnType.task)
-    goal_predicates = [Predicates.GOAL, Predicates.CURRENT_TASK]
-    formulas = __get_formula_templates_from_databases(databases, goal_predicates, goal_predicates)
-    formulas += [Formula(0.0, ~Predicates.GOAL("?t", "?g"))]
+def _create_task_mln(databases):
+    mln = _create_mln_skeleton(MlnType.TASK)
+    parameter_predicates = [Predicates.PARAMETER, Predicates.CURRENT_TASK]
+    formulas = _get_formula_templates_from_databases(databases, parameter_predicates, parameter_predicates)
+    formulas += [Formula(0.0, ~Predicates.PARAMETER("?t", "?k", "?v"))]
     child_predicates = [Predicates.CURRENT_TASK, Predicates.CHILD_TASK]
-    formulas += __get_formula_templates_from_databases(databases, child_predicates, child_predicates)
+    formulas += _get_formula_templates_from_databases(databases, child_predicates, child_predicates)
     formulas += [Formula(0.0, ~Predicates.CHILD_TASK("?t1", "?t2"))]
     error_predicates = [Predicates.CURRENT_TASK, Predicates.ERROR]
-    formulas += __get_formula_templates_from_databases(databases, error_predicates, error_predicates)
+    formulas += _get_formula_templates_from_databases(databases, error_predicates, error_predicates)
     formulas += [Formula(0.0, ~Predicates.ERROR("?t", "?e"))]
     duration_predicates = [Predicates.CURRENT_TASK, Predicates.DURATION]
-    formulas += __get_formula_templates_from_databases(databases, duration_predicates, duration_predicates)
-    formulas = __split_multiple_groundings_of_same_predicate(formulas)
-    formulas = __apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
+    formulas += _get_formula_templates_from_databases(databases, duration_predicates, duration_predicates)
+    formulas = _split_multiple_groundings_of_same_predicate(formulas)
+    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
     mln.append_formulas(formulas)
     return mln
 
 
 def __create_input_output_mln(databases):
-    mln = __create_mln_skeleton(MlnType.input_output)
+    mln = _create_mln_skeleton(MlnType.INPUT_OUTPUT)
     perception_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT,
                              Predicates.OBJECT_LOCATION, Predicates.OBJECT_TYPE]
     necessary_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT, Predicates.OBJECT_TYPE]
-    formulas = __get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
+    formulas = _get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
     formulas += [Formula(0.0, ~Predicates.PERCEIVED_OBJECT("?t", "?o"))]
     action_predicates = [Predicates.CURRENT_TASK, Predicates.USED_OBJECT, Predicates.OBJECT_TYPE]
-    formulas += __get_formula_templates_from_databases(databases, action_predicates, action_predicates)
+    formulas += _get_formula_templates_from_databases(databases, action_predicates, action_predicates)
     formulas += [Formula(0.0, ~Predicates.USED_OBJECT("?t", "?o"))]
-    formulas = __split_objects_of_different_type(formulas, Types.OBJECT)
-    formulas = __apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
+    formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
+    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
     mln.append_formulas(formulas)
     return mln
 
 
-def __create_object_mln(databases):
-    mln = __create_mln_skeleton(MlnType.object)
+def _create_object_mln(databases):
+    mln = _create_mln_skeleton(MlnType.OBJECT)
     property_predicates = [Predicates.PERCEIVED_OBJECT, Predicates.OBJECT_TYPE, Predicates.OBJECT_PROPERTY]
-    formulas = __get_formula_templates_from_databases(databases, property_predicates, property_predicates)
-    formulas = __split_objects_of_different_type(formulas, Types.OBJECT)
-    formulas = __split_multiple_groundings_of_same_predicate(formulas)
-    formulas = __apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    formulas = __add_expand_operator(formulas, [Predicates.OBJECT_PROPERTY])
+    formulas = _get_formula_templates_from_databases(databases, property_predicates, property_predicates)
+    formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
+    formulas = _split_multiple_groundings_of_same_predicate(formulas)
+    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
+    formulas = _add_expand_operator(formulas, [Predicates.OBJECT_PROPERTY])
     mln.append_formulas(formulas)
     return mln
 
 
-def __learn_weights_and_save_mln(mln, databases):
+def _learn_weights_and_save_mln(mln, databases):
     resulting_mln = pracmln_adapter.learn(str(mln), str(databases))
-    f = open(mln.name + ".mln", 'w')
+    f = open(_FILENAME_PREFIX + mln.name + ".mln", 'w')
     f.write(resulting_mln)
     f.close()
 
 
-def __create_mln_skeleton(mln_name):
+def _create_mln_skeleton(mln_name):
     mln = MLN(mln_name)
     for predicate in Predicates.get_all_predicates():
         mln.append_predicate(predicate)
     return mln
 
 
-def __get_formula_templates_from_databases(databases, possible_preds, necessary_preds):
+def _get_formula_templates_from_databases(databases, possible_preds, necessary_preds):
     predicate_contained_in_formula = lambda gnd_atom: gnd_atom.predicate in possible_preds
     formula_atoms = [filter(predicate_contained_in_formula, list(db)) for db in databases]
     predicate_is_in_list = lambda gnd_atoms, pred: pred in [g.predicate for g in gnd_atoms]
@@ -114,7 +121,7 @@ def __get_formula_templates_from_databases(databases, possible_preds, necessary_
     return list(set(formulas))
 
 
-def __apply_replacements(formulas, formula_replacements):
+def _apply_replacements(formulas, formula_replacements):
     for formula in formulas:
         for ground_atom in formula:
             for replacement in formula_replacements:
@@ -125,7 +132,7 @@ def __apply_replacements(formulas, formula_replacements):
     return list(set(formulas))
 
 
-def __add_not_error_atom_if_necessary(formulas):
+def _add_not_error_atom_if_necessary(formulas):
     is_error_ground_atom = lambda atom: atom.predicate == Predicates.ERROR and not atom.negated
     formulas_with_error = filter(lambda f: not not filter(is_error_ground_atom, f), formulas)
     for error_formula in formulas_with_error:
@@ -145,7 +152,7 @@ def __add_not_error_atom_if_necessary(formulas):
             similar_formula.add_ground_atom_to_conjunction(~error)
 
 
-def __split_multiple_groundings_of_same_predicate(formulas):
+def _split_multiple_groundings_of_same_predicate(formulas):
     to_return = []
     for formula in formulas:
         predicate_count = dict()
@@ -165,7 +172,7 @@ def __split_multiple_groundings_of_same_predicate(formulas):
     return to_return
 
 
-def __split_objects_of_different_type(formulas, type_to_split):
+def _split_objects_of_different_type(formulas, type_to_split):
     to_return = []
     for formula in formulas:
         atoms_with_type = filter(lambda atom: type_to_split in atom.predicate.types, formula)
@@ -179,9 +186,10 @@ def __split_objects_of_different_type(formulas, type_to_split):
     return to_return
 
 
-def __add_expand_operator(formulas, predicates_with_star_operator):
+def _add_expand_operator(formulas, predicates_with_star_operator):
     for formula in formulas:
         for ground_atom in formula:
             if ground_atom.predicate in predicates_with_star_operator:
                 ground_atom.apply_expand_operator = True
     return formulas
+

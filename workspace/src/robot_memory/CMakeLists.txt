@@ -50,7 +50,7 @@ add_message_files(
   FILES
   RobotState.msg
   Object.msg
-  ObjectProperty.msg
+  Tuple.msg
 )
 
 ## Generate services in the 'srv' folder

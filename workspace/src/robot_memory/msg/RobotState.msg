@@ -1,9 +1,9 @@
 uint32 sequence_number
 string task_id
 string task_name
-string goal
 bool finished
-string[] errors
+string error
 time current_time
+Tuple[] parameters
 Object[] perceived_objects
-Object[] objects_acted_on
+Object[] used_objects

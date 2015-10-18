@@ -13,10 +13,10 @@ class ExtendedRobotState:
         # inherited properties
         self.task_name = ros_robot_state.task_name
         self.current_time = ros_robot_state.current_time
-        self.errors = ros_robot_state.errors
+        self.error = ros_robot_state.error
         self.finished = ros_robot_state.finished
-        self.goal = ros_robot_state.goal
-        self.objects_acted_on = ros_robot_state.objects_acted_on
+        self.parameters = ros_robot_state.parameters
+        self.used_objects = ros_robot_state.used_objects
         self.perceived_objects = ros_robot_state.perceived_objects
         self.sequence_number = ros_robot_state.sequence_number
         self.task_id = ros_robot_state.task_id

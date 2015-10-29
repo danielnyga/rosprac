@@ -43,8 +43,12 @@ def _create_state_machine_mln(databases):
     state_machine_predicates = [Predicates.CURRENT_TASK_FINISHED, Predicates.CURRENT_TASK, Predicates.ERROR,
                                 Predicates.CURRENT_PARENT_TASK, Predicates.NEXT_TASK, Predicates.NEXT_TASK_FINISHED,
                                 Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.NEXT_PARAMETER]
-    formulas = _get_formula_templates_from_databases(databases, state_machine_predicates, [Predicates.NEXT_TASK])
+    formulas = _get_formula_templates_from_databases(databases, state_machine_predicates, [Predicates.CURRENT_TASK])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
+    for formula in formulas:
+        if not [gnd_atom for gnd_atom in formula if gnd_atom.predicate == Predicates.NEXT_TASK]:
+            formula.add_ground_atom_to_conjunction(~Predicates.NEXT_TASK("?t", "?tt"))
+            formula.add_ground_atom_to_conjunction(~Predicates.NEXT_TASK_FINISHED("?t"))
     formulas = _add_not_error_atom_if_necessary(formulas)
     formulas = _remove_duplicate_error_formulas(formulas)
     mln.append_formulas(formulas)

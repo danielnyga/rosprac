@@ -5,7 +5,7 @@ from pracmln.mln.methods import LearningMethods, InferenceMethods
 from check import *
 
 def main():
-    mln = learn("task.mln", "train.db")
+    mln = learn("learnt_mlns/Task_before_learning.mln", "learnt_mlns/train.db")
     tests = TestSuite()
     addTests(tests, mln)
     tests.execute()
@@ -37,34 +37,25 @@ def addTests(tests, mln):
                    0.9, 1.0, cw_preds_query_success)
     cw_preds_query_child_task = ["duration", "currentTaskFinished", "currentLocation", "currentParentTask", "nextTask", "nextTaskFinished", "perceivedObject", "usedObject", "objectProperty"]
     add_test("childTask(0, Perceive)",\
-                   "currentTask(0, Displace)",\
+                   "currentTask(0, Displace)\n"+\
+                   "currentParameter(0, Goal, Objectatlocation)",\
                    0.9, 1.0, cw_preds_query_child_task)
     add_test("childTask(0, Place)",\
-                   "currentTask(0, Displace)",\
+                   "currentTask(0, Displace)\n"+\
+                   "currentParameter(0, Goal, Objectatlocation)",\
                    0.9, 1.0, cw_preds_query_child_task)
     add_test("childTask(0, Move)",\
-                   "currentTask(0, Displace)",\
+                   "currentTask(0, Displace)\n"+\
+                   "currentParameter(0, Goal, Objectatlocation)",\
                    0.9, 1.0, cw_preds_query_child_task)
     add_test("childTask(0, Pick)",\
-                   "currentTask(0, Displace)",\
+                   "currentTask(0, Displace)\n"+\
+                   "currentParameter(0, Goal, Objectatlocation)",\
                    0.9, 1.0, cw_preds_query_child_task)
     add_test("childTask(0, Displace)",\
-                   "currentTask(0, Displace)",\
-                   0.0, 0.1, cw_preds_query_child_task)
-    cw_preds_query_parameter = ["duration", "currentTask", "currentTaskFinished", "currentLocation", "currentParentTask", "error", "nextTask", "nextTaskFinished", "perceivedObject", "usedObject", "objectProperty", "childTask"]
-    add_test("currentParameter(0, Goal, Objectatlocation)",\
-                   "currentTask(0, Displace)",\
-                   0.9, 1.0, cw_preds_query_parameter)
-    add_test("currentParameter(0, Goal, Objectplaced)",\
-                   "currentTask(0, Displace)",\
-                   0.0, 0.1, cw_preds_query_parameter)
-    cw_preds_query_current_task = ["currentTaskFinished", "currentLocation", "currentParentTask", "error", "currentParameter", "nextParameter", "parentParameter" "perceivedObject", "nextTask", "nextTaskFinished", "usedObject", "objectProperty", "childTask"]
-    add_test("currentTask(0, Displace)",\
+                   "currentTask(0, Displace)\n"+\
                    "currentParameter(0, Goal, Objectatlocation)",\
-                   0.9, 1.0, cw_preds_query_current_task)
-    add_test("currentTask(0, Displace)",\
-                   "currentParameter(0, Goal, Objectpicked)",\
-                   0.0, 0.1, cw_preds_query_current_task)
+                   0.0, 0.1, cw_preds_query_child_task)
     cw_preds_query_duration = ["currentTask", "currentTaskFinished", "currentLocation", "currentParentTask", "error", "currentParameter", "nextParameter", "parentParameter" "perceivedObject", "nextTask", "nextTaskFinished", "usedObject", "objectProperty", "childTask"]
     add_test("duration(0, Short)",\
                    "currentTask(0, Perceive)",\

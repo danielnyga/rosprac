@@ -15,7 +15,6 @@ class MlnType(object):
     STATE_MACHINE = "StateMachine"
     TASK = "Task"
     OBJECT = "Object"
-    INPUT_OUTPUT = "InputOutput"
 
 
 def create_and_save_mlns(robot_state_messages, debug=False):
@@ -25,7 +24,6 @@ def create_and_save_mlns(robot_state_messages, debug=False):
         _create_state_machine_mln(dbs),
         _create_task_mln(dbs),
         _create_input_output_mln(dbs),
-        _create_object_mln(dbs)
     ]
 
     if not os.path.isdir(_FILENAME_PREFIX):
@@ -62,39 +60,22 @@ def _create_task_mln(databases):
                        Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION]
     formulas += _get_formula_templates_from_databases(databases, task_predicates, [Predicates.CURRENT_TASK])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    for formula in formulas:
-        formula.add_ground_atom_to_conjunction(~Predicates.CHILD_TASK("?t", "?tt"))
-        error_predicate_in_formula = filter(lambda gnd_atom: gnd_atom.predicate==Predicates.ERROR, formula)
-        if not error_predicate_in_formula:
-            formula.add_ground_atom_to_conjunction(~Predicates.ERROR("?t", "?e"))
+    formulas = _add_atom_to_every_formula(formulas, ~Predicates.CHILD_TASK("?t0", "?tt"))
+    formulas = _add_negation_if_predicate_not_in_formula(formulas, Predicates.ERROR, ~Predicates.ERROR("?t", "?e"))
     mln.append_formulas(formulas)
     return mln
 
 
 def _create_input_output_mln(databases):
-    mln = _create_mln_skeleton(MlnType.INPUT_OUTPUT)
-    perception_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT,
-                             Predicates.OBJECT_LOCATION, Predicates.OBJECT_TYPE]
-    necessary_predicates = [Predicates.CURRENT_TASK, Predicates.PERCEIVED_OBJECT, Predicates.OBJECT_TYPE]
-    formulas = _get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
-    formulas += [Formula(0.0, ~Predicates.PERCEIVED_OBJECT("?t", "?o"))]
-    action_predicates = [Predicates.CURRENT_TASK, Predicates.USED_OBJECT, Predicates.OBJECT_TYPE]
-    formulas += _get_formula_templates_from_databases(databases, action_predicates, action_predicates)
-    formulas += [Formula(0.0, ~Predicates.USED_OBJECT("?t", "?o"))]
-    formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
-    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    mln.append_formulas(formulas)
-    return mln
-
-
-def _create_object_mln(databases):
     mln = _create_mln_skeleton(MlnType.OBJECT)
-    property_predicates = [Predicates.PERCEIVED_OBJECT, Predicates.OBJECT_TYPE, Predicates.OBJECT_PROPERTY]
-    formulas = _get_formula_templates_from_databases(databases, property_predicates, property_predicates)
+    perception_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.PERCEIVED_OBJECT,
+                             Predicates.OBJECT_LOCATION, Predicates.OBJECT_TYPE, Predicates.OBJECT_PROPERTY,
+                             Predicates.USED_OBJECT]
+    necessary_predicates = [Predicates.CURRENT_TASK, Predicates.OBJECT_TYPE]
+    formulas = _get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
     formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
-    formulas = _split_multiple_groundings_of_same_predicate(formulas)
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    formulas = _add_expand_operator(formulas, [Predicates.OBJECT_PROPERTY])
+    formulas = _add_atom_to_every_formula(formulas, ~Predicates.OBJECT_PROPERTY("?o1", "?k", "?v"))
     mln.append_formulas(formulas)
     return mln
 
@@ -229,4 +210,18 @@ def _add_expand_operator(formulas, predicates_with_star_operator):
         for ground_atom in formula:
             if ground_atom.predicate in predicates_with_star_operator:
                 ground_atom.apply_expand_operator = True
+    return formulas
+
+
+def _add_negation_if_predicate_not_in_formula(formulas, predicate, negation):
+    for formula in formulas:
+        predicate_in_formula = filter(lambda gnd_atom: gnd_atom.predicate==predicate, formula)
+        if not predicate_in_formula:
+            formula.add_ground_atom_to_conjunction(negation)
+    return formulas
+
+
+def _add_atom_to_every_formula(formulas, atom):
+    for formula in formulas:
+        formula.add_ground_atom_to_conjunction(atom)
     return formulas

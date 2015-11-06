@@ -18,7 +18,7 @@ def learn(mln_name, db_name):
     """
     mln_to_learn = MLN(LOGIC, GRAMMAR, mln_name)
     dbs = Database.load(mln_to_learn, db_name)
-    learned_mln = mln_to_learn.learn(dbs, LEARNING_METHOD)
+    learned_mln = mln_to_learn.learn(dbs, LEARNING_METHOD, multicore=True)
     print("")
     return learned_mln
 
@@ -45,7 +45,7 @@ def query(mln, closed_world_predicates, query_string, evidence, debug):
         print(underline)
         print(headline)
         print(underline+"\n")
-    inference = INFERENCE_METHOD(mrf, query_string, cw_preds=closed_world_predicates)
+    inference = INFERENCE_METHOD(mrf, query_string, cw_preds=closed_world_predicates, multicore=True)
     if debug:
         inference.mrf.print_evidence_vars()
     inference.run()

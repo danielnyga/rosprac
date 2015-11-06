@@ -20,52 +20,52 @@ def addTests(tests, mln):
                    "currentTask(0, Perceive)\n"+\
                    "error={Objectnotfound, Destinationposeunreachable}\n"+\
                    "error(0, Objectnotfound) v error(o, Destinationposeunreachable)",\
-                   0.9, 1.0, cw_preds_query_error)
+                   0.9, 1.0, [])
     add_test("error(0, Destinationposeunreachable)",\
                    "currentTask(0, Perceive)\n"+\
                    "error={Objectnotfound, Destinationposeunreachable}\n"+\
                    "error(0, Objectnotfound) v error(0, Destinationposeunreachable)",\
-                   0.0, 0.1, cw_preds_query_error)
+                   0.0, 0.1, [])
     cw_preds_query_success = ["duration", "currentTask", "currentTaskFinished", "currentParentTask", "currentLocation", "currentParameter", "nextParameter", "parentParameter" "perceivedObject", "nextTask", "nextTaskFinished", "usedObject", "objectProperty","childTask"]
     add_test("!error(0, Objectnotfound) ^ !error(0, Destinationposeunreachable)",\
                    "error={Objectnotfound, Destinationposeunreachable}\n"+\
                    "currentTask(0, Perceive)",\
-                   0.4, 0.6, cw_preds_query_success)
+                   0.4, 0.6, [])
     add_test("!error(0, Objectnotfound) ^ !error(0, Destinationposeunreachable)",\
                    "error={Objectnotfound, Destinationposeunreachable}\n"+\
                    "currentTask(0, Pick)",\
-                   0.9, 1.0, cw_preds_query_success)
-    cw_preds_query_child_task = ["duration", "currentTaskFinished", "currentLocation", "currentParentTask", "nextTask", "nextTaskFinished", "perceivedObject", "usedObject", "objectProperty"]
+                   0.9, 1.0, [])
+    cw_preds_query_child_task = ["currentTaskFinished", "currentLocation", "nextTask", "nextTaskFinished", "perceivedObject", "usedObject", "objectProperty"]
     add_test("childTask(0, Perceive)",\
                    "currentTask(0, Displace)\n"+\
                    "currentParameter(0, Goal, Objectatlocation)",\
-                   0.9, 1.0, cw_preds_query_child_task)
+                   0.9, 1.0, [])
     add_test("childTask(0, Place)",\
                    "currentTask(0, Displace)\n"+\
                    "currentParameter(0, Goal, Objectatlocation)",\
-                   0.9, 1.0, cw_preds_query_child_task)
+                   0.9, 1.0, [])
     add_test("childTask(0, Move)",\
                    "currentTask(0, Displace)\n"+\
                    "currentParameter(0, Goal, Objectatlocation)",\
-                   0.9, 1.0, cw_preds_query_child_task)
+                   0.9, 1.0, [])
     add_test("childTask(0, Pick)",\
                    "currentTask(0, Displace)\n"+\
                    "currentParameter(0, Goal, Objectatlocation)",\
-                   0.9, 1.0, cw_preds_query_child_task)
+                   0.9, 1.0, [])
     add_test("childTask(0, Displace)",\
                    "currentTask(0, Displace)\n"+\
                    "currentParameter(0, Goal, Objectatlocation)",\
-                   0.0, 0.1, cw_preds_query_child_task)
+                   0.0, 0.1, [])
     cw_preds_query_duration = ["currentTask", "currentTaskFinished", "currentLocation", "currentParentTask", "error", "currentParameter", "nextParameter", "parentParameter" "perceivedObject", "nextTask", "nextTaskFinished", "usedObject", "objectProperty", "childTask"]
     add_test("duration(0, Short)",\
                    "currentTask(0, Perceive)",\
-                   0.9, 1.0, cw_preds_query_duration)
+                   0.9, 1.0, [])
     add_test("duration(0, Medium)",\
                    "currentTask(0, Perceive)",\
-                   0.0, 0.1, cw_preds_query_duration)
+                   0.0, 0.1, [])
     add_test("duration(0, Medium)",\
                    "currentTask(0, Move)",\
-                   0.4, 0.6, cw_preds_query_duration)
+                   0.4, 0.6, [])
 
 
 if __name__ == "__main__":

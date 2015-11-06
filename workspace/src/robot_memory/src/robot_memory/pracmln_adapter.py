@@ -20,7 +20,7 @@ def learn(mln, databases):
     """
     mln_to_learn = parse_mln(text=mln, logic=LOGIC, grammar=GRAMMAR)
     dbs = parse_db(mln_to_learn, databases)
-    learned_mln = mln_to_learn.learn(dbs, LEARNING_METHOD)
+    learned_mln = mln_to_learn.learn(dbs, LEARNING_METHOD, multicore=True)
     mln_as_string = StringIO()
     learned_mln.write(mln_as_string)
     return mln_as_string.getvalue()

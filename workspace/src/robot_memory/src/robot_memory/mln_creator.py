@@ -58,17 +58,15 @@ def _create_state_machine_mln(databases):
 def _create_task_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK)
     formulas = []
-    child_predicates = [Predicates.CURRENT_TASK, Predicates.CHILD_TASK, Predicates.CURRENT_PARAMETER]
-    formulas += _get_formula_templates_from_databases(databases, child_predicates, child_predicates)
-    error_predicates = [Predicates.CURRENT_TASK, Predicates.ERROR, Predicates.CURRENT_PARAMETER]
-    necessary_error_predicates = [Predicates.CURRENT_TASK, Predicates.ERROR]
-    formulas += _get_formula_templates_from_databases(databases, error_predicates, necessary_error_predicates)
-    duration_predicates = [Predicates.CURRENT_TASK, Predicates.DURATION, Predicates.CURRENT_PARAMETER]
-    necessary_duration_predicates = [Predicates.CURRENT_TASK, Predicates.DURATION]
-    formulas += _get_formula_templates_from_databases(databases, duration_predicates, necessary_duration_predicates)
-    formulas = _split_multiple_groundings_of_same_predicate(formulas)
-    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
-    formulas = _add_expand_operator(formulas, [Predicates.CHILD_TASK, Predicates.ERROR])
+    task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.CHILD_TASK, Predicates.ERROR,
+                       Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION]
+    formulas += _get_formula_templates_from_databases(databases, task_predicates, [Predicates.CURRENT_TASK])
+    formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
+    for formula in formulas:
+        formula.add_ground_atom_to_conjunction(~Predicates.CHILD_TASK("?t", "?tt"))
+        error_predicate_in_formula = filter(lambda gnd_atom: gnd_atom.predicate==Predicates.ERROR, formula)
+        if not error_predicate_in_formula:
+            formula.add_ground_atom_to_conjunction(~Predicates.ERROR("?t", "?e"))
     mln.append_formulas(formulas)
     return mln
 
@@ -128,12 +126,20 @@ def _get_formula_templates_from_databases(databases, possible_preds, necessary_p
 
 def _apply_replacements(formulas, formula_replacements):
     for formula in formulas:
+        replacements = {}
+        suffix = 0
         for ground_atom in formula:
             for replacement in formula_replacements:
                 constant_type = replacement[0]
-                new_value = replacement[1]
                 if constant_type in ground_atom.predicate.types:
-                    ground_atom.set_argument_value(constant_type, new_value)
+                    current_value = ground_atom.get_argument_value(constant_type)
+                    if current_value in replacements:
+                        ground_atom.set_argument_value(constant_type, replacements[current_value])
+                    else:
+                        new_value = new_value = replacement[1] + str(suffix)
+                        replacements[current_value] = new_value
+                        suffix += 1
+                        ground_atom.set_argument_value(constant_type, new_value)
     return list(set(formulas))
 
 

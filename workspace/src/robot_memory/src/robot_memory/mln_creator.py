@@ -45,13 +45,14 @@ def _create_state_machine_mln(databases):
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t")])
     for formula in formulas:
         if not [gnd_atom for gnd_atom in formula.logical_formula if gnd_atom.predicate == Predicates.NEXT_TASK]:
-            formula.logical_formula.add_element(~Predicates.NEXT_TASK("?t", "?tt"))
             formula.logical_formula.add_element(~Predicates.NEXT_TASK_FINISHED("?t"))
     formulas = _add_not_error_atom_if_necessary(formulas)
     formulas = _remove_duplicate_error_formulas(formulas)
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_PARAMETER,
-                                                  [("?kn", Types.PROPERTY_KEY), ("?vn", Types.PROPERTY_VALUE)],
-                                                  Predicates.NEXT_PARAMETER("?t0", "?kn", "?vn"))
+                                                  [("?k", Types.PROPERTY_KEY), ("?v", Types.PROPERTY_VALUE)],
+                                                  Predicates.NEXT_PARAMETER("?t0", "?k", "?v"))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_TASK,
+                                                  [("?tt", Types.TASK_TYPE)], Predicates.NEXT_TASK("t0", "?tt"))
     mln.append_formulas(formulas)
     return mln
 
@@ -63,9 +64,10 @@ def _create_task_mln(databases):
                        Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION]
     formulas += _get_formula_templates_from_databases(databases, task_predicates, [Predicates.CURRENT_TASK])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    formulas = _add_negation_if_predicate_not_in_formula(formulas, Predicates.ERROR, ~Predicates.ERROR("?t", "?e"))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.ERROR,
+                                                  [("?e", Types.ERROR)], Predicates.ERROR("?t0", "?e"))
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK,
-                                                  [("?ttc", Types.TASK_TYPE)], Predicates.CHILD_TASK("?t0", "?ttc"))
+                                                  [("?tt", Types.TASK_TYPE)], Predicates.CHILD_TASK("?t0", "?tt"))
     mln.append_formulas(formulas)
     return mln
 
@@ -79,7 +81,10 @@ def _create_input_output_mln(databases):
     formulas = _get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
     formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    formulas = _add_atom_to_every_formula(formulas, ~Predicates.OBJECT_PROPERTY("?o1", "?k", "?v"))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.OBJECT_PROPERTY,
+                                                  [("?k", Types.OBJECT_PROPERTY_KEY),
+                                                   ("?v", Types.OBJECT_PROPERTY_VALUE)],
+                                                   Predicates.OBJECT_PROPERTY("?o1", "?k", "?v"))
     mln.append_formulas(formulas)
     return mln
 

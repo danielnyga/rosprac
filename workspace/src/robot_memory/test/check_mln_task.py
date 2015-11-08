@@ -5,7 +5,7 @@ from pracmln.mln.methods import LearningMethods, InferenceMethods
 from check import *
 
 def main():
-    mln = learn("learnt_mlns/Task_before_learning.mln", "learnt_mlns/train.db")
+    mln = open_mln("learnt_mlns/Task.mln")
     tests = TestSuite()
     addTests(tests, mln)
     tests.execute()

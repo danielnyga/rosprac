@@ -1,36 +1,45 @@
 from copy import deepcopy
 
 
-class GroundAtom(object):
-    def __init__(self, predicate, constants, negated=False):
-        self.__predicate = predicate
-        self._constants = [list(typeValuePair) for typeValuePair in constants]
+class NegatableElement(object):
+    def __init__(self, negated):
         self.__negated = negated
 
+    @property
+    def negated(self):
+        return self.__negated
+
+    @negated.setter
+    def negated(self, value):
+        self.negated = value
+
+
+class GroundAtom(NegatableElement):
+    def __init__(self, predicate, constants, negated=False):
+        NegatableElement.__init__(self, negated)
+        self.__predicate = predicate
+        self._constants = [list(typeValuePair) for typeValuePair in constants]
+
     def __invert__(self):
-        return GroundAtom(self.__predicate, self._constants, not self.__negated)
+        return GroundAtom(self.__predicate, self._constants, not self.negated)
 
     def __str__(self):
         args = str(reduce(lambda s1, s2: str(s1) + "," + str(s2), [c[1] for c in self._constants]))
-        return ("!" if self.__negated else "") + self.__predicate.name + "(" + args + ")"
+        return ("!" if self.negated else "") + self.__predicate.name + "(" + args + ")"
 
     def __repr__(self):
         return self.__str__()
 
     def __hash__(self):
-        return self.__predicate.__hash__() + self.__negated.__hash__() + \
+        return self.__predicate.__hash__() + self.negated.__hash__() + \
             tuple([tuple(pair) for pair in self._constants]).__hash__()
 
     def __eq__(self, other):
-        return (self.__predicate == other.__predicate) and (self.__negated == other.__negated) and \
+        return (self.__predicate == other.__predicate) and (self.negated == other.negated) and \
                (self._constants == other._constants)
 
     def __ne__(self, other):
         return not self.__eq__(other)
-
-    @property
-    def negated(self):
-        return self.__negated
 
     @property
     def predicate(self):
@@ -181,25 +190,21 @@ class FormulaGroundAtom(GroundAtom):
 
 
 class Formula(object):
-    def __init__(self, weight, *ground_atoms):
+    def __init__(self, weight, logical_formula):
         self.__weight = weight
-        self.__ground_atoms = [FormulaGroundAtom(g) for g in ground_atoms]
-        self.__ground_atoms.sort(key=lambda a: a.predicate.name)
+        self.__logical_formula = logical_formula
 
     def __str__(self):
-        return str(self.__weight) + " " + str(reduce(lambda g1, g2: str(g1) + " ^ " + str(g2), self.__ground_atoms))
+        return str(self.__weight) + " " + str(self.__logical_formula)
 
     def __repr__(self):
         return self.__str__()
 
-    def __iter__(self):
-        return self.__ground_atoms.__iter__()
-
     def __hash__(self):
-        return self.__weight.__hash__() + tuple(self.__ground_atoms).__hash__()
+        return self.__weight.__hash__() + self.__logical_formula.__hash__()
 
     def __eq__(self, other):
-        return (self.__weight == other.__weight) + (self.__ground_atoms == other.__ground_atoms)
+        return (self.__weight == other.__weight) + (self.__logical_formula == other.__logical_formula)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -208,12 +213,107 @@ class Formula(object):
     def weight(self):
         return self.__weight
 
-    def add_ground_atom_to_conjunction(self, ground_atom):
-        self.__ground_atoms.append(ground_atom)
-        self.__ground_atoms.sort(key=lambda a: a.predicate.name)
+    @weight.setter
+    def weight(self, value):
+        self.__weight = value
 
-    def remove_ground_atom_from_conjunction(self, ground_atom):
-        self.__ground_atoms.remove(ground_atom)
+    @property
+    def logical_formula(self):
+        return self.__logical_formula
+
+
+class LogicalConnective(NegatableElement):
+    def __init__(self, elements, negated=False):
+        NegatableElement.__init__(self, negated)
+        self._elements = list(elements)
+        self._elements.sort(key=lambda a: str(a))
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __iter__(self):
+        return self._elements.__iter__()
+
+    def __hash__(self):
+        return tuple(self._elements).__hash__()
+
+    def __eq__(self, other):
+        return (self.__class__.__name__ == other.__class__.__name__) + (self._elements == other._elements)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def add_element(self, element):
+        self._elements.append(element)
+        self._elements.sort(key=lambda a: str(a))
+
+    def remove_element(self, element):
+        self._elements.remove(element)
+
+
+class Conjunction(LogicalConnective):
+    def __init__(self, elements, negated=False):
+        LogicalConnective.__init__(self, elements, negated)
+
+    def __str__(self):
+        elements_in_conjunction = str(reduce(lambda g1, g2: str(g1) + " ^ " + str(g2), self._elements))
+        negation_start = "!(" if self.negated else ""
+        negation_end = ")" if self.negated else ""
+        return negation_start + elements_in_conjunction + negation_end
+
+
+class ExistentialQuantifier(NegatableElement):
+    def __init__(self, qualified_variables, logical_formula, negated=False):
+        NegatableElement.__init__(self, negated)
+        self.__qualified_variables = qualified_variables
+        self.__logical_formula = logical_formula
+
+    def __str__(self):
+        qualified_variables = str(reduce(lambda x, y: str(x) + ", " + str(y), self.__qualified_variables))
+        logical_formulas = " (" + str(self.__logical_formula) + ")"
+        negation_start = "!(" if self.negated else ""
+        negation_end = ")" if self.negated else ""
+        return negation_start + "EXIST " + qualified_variables + logical_formulas + negation_end
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __hash__(self):
+        return tuple(self.__qualified_variables).__hash__() + \
+               self.__logical_formula.__hash__() + self.negated.__hash__()
+
+    def __eq__(self, other):
+        return self.__qualified_variables == other.__qualified_variables and \
+               self.negated == other.negated and \
+               self.__logical_formula == other.__logical_formula
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class EqualityComparison(NegatableElement):
+    def __init__(self, element1, element2, negated=False):
+        NegatableElement.__init__(self, negated)
+        self.__element1 = element1
+        self.__element2 = element2
+
+    def __str__(self):
+        if self.negated:
+            return str(self.__element1) + "=/=" + str(self.__element2)
+        else:
+            return str(self.__element1) + "=" + str(self.__element2)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __hash__(self):
+        return self.__element1.__hash__() + self.__element2.__hash__()
+
+    def __eq__(self, other):
+        return self.__element1 == other.__element1 and self.__element2 == other.__element2
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class MLN(object):
@@ -241,6 +341,14 @@ class MLN(object):
     @property
     def name(self):
         return self.__name
+
+    @property
+    def formulas(self):
+        return self.__formulas
+
+    @formulas.setter
+    def formulas(self, value):
+        self.__formulas = value
 
     def save(self, file_name):
         if not file_name:

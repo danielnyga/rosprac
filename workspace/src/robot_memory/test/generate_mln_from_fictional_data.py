@@ -59,6 +59,12 @@ class RobotStateTest(object):
                           properties=[
                               Tuple(name="Color",
                                        value="Yellow")])
+        spatula2 = Object(object_type="Spatula",
+                          object_location="Sink",
+                          object_id="SP2",
+                          properties=[
+                              Tuple(name="Color",
+                                    value="Yellow")])
         plate0 = Object(object_type="Plate",
                         object_location="Sink",
                         object_id="PL",
@@ -101,13 +107,13 @@ class RobotStateTest(object):
             RobotState(sequence_number=4,
                        task_id="Perceive2",
                        task_name="Perceive",
-                       perceived_objects=[spatula1, plate0],
+                       perceived_objects=[spatula1, spatula2, plate0],
                        finished=False,
                        current_time=rospy.Time(3)),
             RobotState(sequence_number=5,
                        task_id="Perceive2",
                        task_name="Perceive",
-                       perceived_objects=[spatula1, plate0],
+                       perceived_objects=[spatula1, spatula2, plate0],
                        finished=True,
                        current_time=rospy.Time(4)),
             RobotState(sequence_number=6,

@@ -5,7 +5,7 @@ from pracmln.mln.methods import LearningMethods, InferenceMethods
 from check import *
 
 def main():
-    mln = open_mln("learnt_mlns/InputOutput.mln")
+    mln = open_mln("learnt_mlns/Object.mln")
     tests = TestSuite()
     addTests(tests, mln)
     tests.execute()
@@ -36,12 +36,12 @@ def addTests(tests, mln):
                 "currentTask(0, Perceive)\n"+\
                 "perceivedObject(0, O)\n"+\
                 "objectType(O, Spatula)",
-                0.4, 0.6, cw_preds_query_object_location)
+                0.3, 0.4, cw_preds_query_object_location)
     add_test("objectLocation(0, O, Sink)",\
                 "currentTask(0, Perceive)\n"+\
                 "perceivedObject(0, O)\n"+\
                 "objectType(O, Spatula)",
-                0.4, 0.6, cw_preds_query_object_location)
+                0.6, 0.7, cw_preds_query_object_location)
     add_test("objectLocation(0, O, Cupboard)",\
                 "currentTask(0, Perceive)\n"+\
                 "perceivedObject(0, O)\n"+\
@@ -69,11 +69,11 @@ def addTests(tests, mln):
     add_test("objectProperty(O, Form, Long)",\
                     "perceivedObject(0, O)\n"+\
                     "objectType(O, Spatula)",\
-                    0.4, 0.6, cw_preds_query_objectProperty)
+                    0.3, 0.4, cw_preds_query_objectProperty)
     add_test("objectProperty(O, Color, Yellow)",\
                     "perceivedObject(0, O)\n"+\
                     "objectType(O, Spatula)",\
-                    0.4, 0.6, cw_preds_query_objectProperty)
+                    0.6, 0.7, cw_preds_query_objectProperty)
     add_test("objectProperty(O, Form, Round)",\
                     "perceivedObject(0, O)\n"+\
                     "objectType(O, Plate)",\

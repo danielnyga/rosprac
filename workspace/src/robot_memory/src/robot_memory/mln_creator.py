@@ -21,9 +21,9 @@ def create_and_save_mlns(robot_state_messages, debug=False):
     preprocessed_messages = robot_state_preprocessor.extract_additional_relations(robot_state_messages)
     dbs = database_creator.create_database_collection(preprocessed_messages)
     mlns = [
-        _create_state_machine_mln(dbs),
-        _create_task_mln(dbs),
-        _create_input_output_mln(dbs),
+#        _create_state_machine_mln(dbs),
+#        _create_task_mln(dbs),
+        _create_object_mln(dbs),
     ]
 
     if not os.path.isdir(_FILENAME_PREFIX):
@@ -72,7 +72,7 @@ def _create_task_mln(databases):
     return mln
 
 
-def _create_input_output_mln(databases):
+def _create_object_mln(databases):
     mln = _create_mln_skeleton(MlnType.OBJECT)
     perception_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.PERCEIVED_OBJECT,
                              Predicates.OBJECT_LOCATION, Predicates.OBJECT_TYPE, Predicates.OBJECT_PROPERTY,
@@ -85,6 +85,7 @@ def _create_input_output_mln(databases):
                                                   [("?k", Types.OBJECT_PROPERTY_KEY),
                                                    ("?v", Types.OBJECT_PROPERTY_VALUE)],
                                                    Predicates.OBJECT_PROPERTY("?o1", "?k", "?v"))
+    formulas = _add_not_perceived_or_not_acted_on_if_necessary(formulas, "?t0")
     mln.append_formulas(formulas)
     return mln
 
@@ -184,6 +185,28 @@ def _remove_duplicate_error_formulas(formulas):
     return list(set(to_return))
 
 
+def _add_not_perceived_or_not_acted_on_if_necessary(formulas, timestep):
+    for formula in formulas:
+        perceived = set()
+        used = set()
+        objects = set()
+        for gnd_atom in formula.logical_formula:
+            if hasattr(gnd_atom, "predicate") and hasattr(gnd_atom, "get_argument_value"):
+                object = gnd_atom.get_argument_value(Types.OBJECT)
+                if not object is None:
+                    objects.add(object)
+                    if gnd_atom.predicate == Predicates.PERCEIVED_OBJECT:
+                        perceived.add(object)
+                    if gnd_atom.predicate == Predicates.USED_OBJECT:
+                        used.add(object)
+        for object in objects:
+            if object not in perceived:
+                formula.logical_formula.add_element(~Predicates.PERCEIVED_OBJECT(timestep, object))
+            if object not in used:
+                formula.logical_formula.add_element(~Predicates.USED_OBJECT(timestep, object))
+    return formulas
+
+
 def _split_multiple_groundings_of_same_predicate(formulas):
     to_return = []
     for formula in formulas:
@@ -225,14 +248,6 @@ def _add_expand_operator(formulas, predicates_with_star_operator):
         for ground_atom in formula.logical_formula:
             if ground_atom.predicate in predicates_with_star_operator:
                 ground_atom.apply_expand_operator = True
-    return formulas
-
-
-def _add_negation_if_predicate_not_in_formula(formulas, predicate, negation):
-    for formula in formulas:
-        predicate_in_formula = filter(lambda gnd_atom: gnd_atom.predicate==predicate, formula.logical_formula)
-        if not predicate_in_formula:
-            formula.logical_formula.add_element(negation)
     return formulas
 
 

@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-
 class NegatableElement(object):
     def __init__(self, negated):
         self.__negated = negated
@@ -35,8 +34,10 @@ class GroundAtom(NegatableElement):
             tuple([tuple(pair) for pair in self._constants]).__hash__()
 
     def __eq__(self, other):
-        return (self.__predicate == other.__predicate) and (self.negated == other.negated) and \
-               (self._constants == other._constants)
+        return hasattr(other, "predicate") and hasattr(other, "negated") and hasattr(other, "type_value_pairs") and \
+               (self.predicate == other.predicate) and \
+               (self.negated == other.negated) and \
+               (self.type_value_pairs == other.type_value_pairs)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -44,6 +45,10 @@ class GroundAtom(NegatableElement):
     @property
     def predicate(self):
         return self.__predicate
+
+    @property
+    def type_value_pairs(self):
+        return self._constants
 
     def set_argument_value(self, argument_type, value):
         for pair in self._constants:
@@ -166,7 +171,8 @@ class FormulaGroundAtom(GroundAtom):
         self.__apply_expand_operator = False
 
     def __eq__(self, other):
-        return GroundAtom.__eq__(self, other) and self.__apply_expand_operator == other.__apply_expand_operator
+        other_expand_operator = hasattr(other, "__apply_expand_operator") and other.__apply_expand_operator
+        return GroundAtom.__eq__(self, other) and self.__apply_expand_operator == other_expand_operator
 
     def __ne__(self, other):
         return not self.__eq__()
@@ -314,6 +320,74 @@ class EqualityComparison(NegatableElement):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+
+class ClosedWorldGroundAtoms(object):
+    def __init__(self, predicate, fixed_variables, exceptions, variable_prefix):
+        self.__predicate = predicate
+        self.__fixed_type_variable_pairs = fixed_variables
+        self.__exceptions = exceptions
+        self.__variable_prefix = variable_prefix
+        self.__realization = None
+        self.calculate_realization()
+
+    def calculate_realization(self):
+        variable_suffix = 0
+        quantified_variables = []
+        variables = []
+        type_to_quantified_variables = {}
+        for variable_type in self.__predicate.types:
+            variable_is_fixed = reduce(lambda rest, f: rest or variable_type == f[0],
+                                       self.fixed_type_variable_pairs, False)
+            if variable_is_fixed:
+                variables.append(reduce(lambda rest, f: f[1] if variable_type == f[0] else rest,
+                                        self.fixed_type_variable_pairs, None))
+            else:
+                variable = str(self.__variable_prefix) + str(variable_suffix)
+                variable_suffix += 1
+                type_to_quantified_variables[variable_type] = variable
+                variables.append(variable)
+                quantified_variables.append(variable)
+        negated_predicate = self.__predicate(*variables)
+        conjunction_elements = [negated_predicate]
+        for exceptions_for_one_atom in self.__exceptions:
+            sub_conjunction_elements = []
+            for exception in exceptions_for_one_atom:
+                variable_type = exception[0]
+                allowed_value = exception[1]
+                variable = type_to_quantified_variables[variable_type]
+                sub_conjunction_elements.append(EqualityComparison(variable, allowed_value))
+            conjunction_elements.append(Conjunction(sub_conjunction_elements, True))
+        new_logic_formula = Conjunction(conjunction_elements)
+        self.__realization = ExistentialQuantifier(quantified_variables, new_logic_formula, True)
+
+    def __str__(self):
+        return str(self.__realization)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __hash__(self):
+        return hash(self.__realization)
+
+    def __eq__(self, other):
+        return self.__realization == other.__realization
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    @property
+    def predicate(self):
+        return self.__predicate
+
+    @property
+    def fixed_type_variable_pairs(self):
+        return self.__fixed_type_variable_pairs
+
+    @fixed_type_variable_pairs.setter
+    def fixed_type_variable_pairs(self, value):
+        self.__fixed_type_variable_pairs = value
+        self.calculate_realization()
 
 
 class MLN(object):

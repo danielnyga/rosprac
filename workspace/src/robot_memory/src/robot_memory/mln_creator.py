@@ -1,9 +1,8 @@
 import database_creator
 import robot_state_preprocessor
 from robot_memory_constants import Types, Predicates
-from mln_elements import MLN, Formula, FormulaGroundAtom, Conjunction, ExistentialQuantifier, EqualityComparison
+from mln_elements import *
 from functools import partial
-import pracmln_adapter
 from itertools import groupby
 import os
 
@@ -17,12 +16,12 @@ class MlnType(object):
     OBJECT = "Object"
 
 
-def create_and_save_mlns(robot_state_messages, debug=False):
+def create_and_save_mlns(robot_state_messages, learner, debug=False):
     preprocessed_messages = robot_state_preprocessor.extract_additional_relations(robot_state_messages)
     dbs = database_creator.create_database_collection(preprocessed_messages)
     mlns = [
-#        _create_state_machine_mln(dbs),
-#        _create_task_mln(dbs),
+        _create_state_machine_mln(dbs),
+        _create_task_mln(dbs),
         _create_object_mln(dbs),
     ]
 
@@ -33,7 +32,7 @@ def create_and_save_mlns(robot_state_messages, debug=False):
             mln.save(_FILENAME_PREFIX + mln.name + "_before_learning")
         dbs.save(_FILENAME_PREFIX + "train")
     for mln in mlns:
-        _learn_weights_and_save_mln(mln, dbs)
+        _learn_weights_and_save_mln(mln, dbs, learner)
 
 
 def _create_state_machine_mln(databases):
@@ -48,11 +47,8 @@ def _create_state_machine_mln(databases):
             formula.logical_formula.add_element(~Predicates.NEXT_TASK_FINISHED("?t"))
     formulas = _add_not_error_atom_if_necessary(formulas)
     formulas = _remove_duplicate_error_formulas(formulas)
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_PARAMETER,
-                                                  [("?k", Types.PROPERTY_KEY), ("?v", Types.PROPERTY_VALUE)],
-                                                  Predicates.NEXT_PARAMETER("?t0", "?k", "?v"))
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_TASK,
-                                                  [("?tt", Types.TASK_TYPE)], Predicates.NEXT_TASK("t0", "?tt"))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_PARAMETER, [(Types.TIME_STEP, "?t0")], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_TASK, [(Types.TIME_STEP, "?ts")], "?nt")
     mln.append_formulas(formulas)
     return mln
 
@@ -61,13 +57,17 @@ def _create_task_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK)
     formulas = []
     task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.CHILD_TASK, Predicates.ERROR,
-                       Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION]
-    formulas += _get_formula_templates_from_databases(databases, task_predicates, [Predicates.CURRENT_TASK])
+                       Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
+                       Predicates.CURRENT_TASK_FINISHED]
+    formulas += _get_formula_templates_from_databases(databases, task_predicates,
+                                                      [Predicates.CURRENT_TASK, Predicates.CURRENT_TASK_FINISHED])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.ERROR,
-                                                  [("?e", Types.ERROR)], Predicates.ERROR("?t0", "?e"))
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK,
-                                                  [("?tt", Types.TASK_TYPE)], Predicates.CHILD_TASK("?t0", "?tt"))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.ERROR, [(Types.TIME_STEP, "?t0")], "?e")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK, [(Types.TIME_STEP, "?t0")], "?ct")
+
+    def no_negation_of(formula, predicate):
+        return not reduce(lambda r, g: r or g.predicate == predicate and g.negated, formula.logical_formula, False)
+    formulas = filter(partial(no_negation_of, predicate=Predicates.CURRENT_TASK_FINISHED), formulas)
     mln.append_formulas(formulas)
     return mln
 
@@ -81,20 +81,17 @@ def _create_object_mln(databases):
     formulas = _get_formula_templates_from_databases(databases,perception_predicates, necessary_predicates)
     formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.OBJECT_PROPERTY,
-                                                  [("?k", Types.OBJECT_PROPERTY_KEY),
-                                                   ("?v", Types.OBJECT_PROPERTY_VALUE)],
-                                                   Predicates.OBJECT_PROPERTY("?o1", "?k", "?v"))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.OBJECT_PROPERTY, [(Types.OBJECT, "?o1")], "?op")
     formulas = _add_not_perceived_or_not_acted_on_if_necessary(formulas, "?t0")
     mln.append_formulas(formulas)
     return mln
 
 
-def _learn_weights_and_save_mln(mln, databases):
-   resulting_mln = pracmln_adapter.learn(str(mln), str(databases))
-   f = open(_FILENAME_PREFIX + mln.name + ".mln", 'w')
-   f.write(resulting_mln)
-   f.close()
+def _learn_weights_and_save_mln(mln, databases, learner):
+    resulting_mln = learner.learn(mln, databases)
+    f = open(_FILENAME_PREFIX + mln.name + ".mln", 'w')
+    f.write(str(resulting_mln))
+    f.close()
 
 
 def _create_mln_skeleton(mln_name):
@@ -251,22 +248,20 @@ def _add_expand_operator(formulas, predicates_with_star_operator):
     return formulas
 
 
-def _add_negation_for_all_but_existing(formulas, predicate, quantified_variables_with_type, negated_predicate):
+def _add_negation_for_all_but_existing(formulas, predicate, fixed_types_with_value, prefix):
     for formula in formulas: #TODO: Make it work on nested elements...
         has_desired_predicate = lambda gnd_atom: hasattr(gnd_atom, "predicate") and gnd_atom.predicate == predicate
         existing_atoms = filter(has_desired_predicate, formula.logical_formula)
-        conjunction_elements = [negated_predicate]
+        types_to_be_fixed = filter(lambda t: t not in [f[0] for f in fixed_types_with_value], predicate.types)
+        exceptions = []
         for existing_atom in existing_atoms:
-            sub_conjunction_elements = []
-            for variable_type_pair in quantified_variables_with_type:
-                variable = variable_type_pair[0]
-                type = variable_type_pair[1]
-                value = existing_atom.get_argument_value(type)
-                sub_conjunction_elements.append(EqualityComparison(variable, value))
-            conjunction_elements.append(Conjunction(sub_conjunction_elements, True))
-        new_logic_formula = Conjunction(conjunction_elements)
-        variables = [var[0] for var in quantified_variables_with_type]
-        formula.logical_formula.add_element(ExistentialQuantifier(variables, new_logic_formula, True))
+            gnd_atom_exception = []
+            for fixed_type in types_to_be_fixed:
+                value = existing_atom.get_argument_value(fixed_type)
+                gnd_atom_exception.append((fixed_type, value))
+            exceptions.append(gnd_atom_exception)
+        formula.logical_formula.add_element(
+            ClosedWorldGroundAtoms(predicate, fixed_types_with_value, exceptions, prefix))
     return formulas
 
 

@@ -4,7 +4,9 @@ import time
 import threading
 import traceback
 import rospy
-import robot_memory.mln_creator as mln_creator
+from robot_memory.pracmln_adapter import PracmlnAdapter
+from robot_memory.weight_calculator import WeightCalculator
+from robot_memory import mln_creator
 from std_srvs.srv import Trigger, TriggerResponse
 from robot_memory.msg import RobotState
 from robot_memory.srv import LearningTrigger, LearningTriggerResponse
@@ -54,10 +56,11 @@ class RobotMemoryService:
         rospy.loginfo("Learning...")
         messages.sort(key=lambda m: m.sequence_number)
         try:
-            if len(argv) >= 2 and argv[1] == "debug":
-                mln_creator.create_and_save_mlns(messages, True)
-            else:
-                mln_creator.create_and_save_mlns(messages, False)
+            debug = "debug" in argv
+            learner = WeightCalculator()
+            if "pracmln" in argv:
+                learner = PracmlnAdapter()
+            mln_creator.create_and_save_mlns(messages, learner, True)
         except Exception:
             rospy.logfatal(traceback.format_exc())
             return LearningTriggerResponse(success=False)

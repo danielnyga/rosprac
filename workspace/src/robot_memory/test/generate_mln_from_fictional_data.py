@@ -2,6 +2,7 @@
 
 import subprocess
 import os
+import sys
 import rospy
 import time
 from robot_memory.srv import LearningTrigger
@@ -17,10 +18,11 @@ def main():
 
 class RobotStateTest(object):
     def execute(self):
-        service_process = subprocess.Popen(["rosrun", "robot_memory", "service", "debug"], env=os.environ)
+        service_process = subprocess.Popen(["rosrun", "robot_memory", "service"] + sys.argv, env=os.environ)
         self.__send_test_messages()
         service_process.terminate()
         service_process.wait()
+        rospy.signal_shutdown(lambda: "Finished Learning")
         check_mlns.main(False)
 
     def __send_test_messages(self):

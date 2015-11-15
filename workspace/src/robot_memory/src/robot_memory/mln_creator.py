@@ -54,14 +54,17 @@ def _create_state_machine_mln(databases):
 def _create_task_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK)
     formulas = []
-    task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.CHILD_TASK, Predicates.ERROR,
-                       Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
-                       Predicates.CURRENT_TASK_FINISHED]
+    # task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.CHILD_TASK, Predicates.ERROR,
+    #                    Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
+    #                    Predicates.CURRENT_TASK_FINISHED]
+    task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.ERROR,
+                        Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
+                        Predicates.CURRENT_TASK_FINISHED]
     formulas += _get_formula_templates_from_databases(databases, task_predicates,
                                                       [Predicates.CURRENT_TASK, Predicates.CURRENT_TASK_FINISHED])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.ERROR, [(Types.TIME_STEP, "?t0")], "?e")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK, [(Types.TIME_STEP, "?t0")], "?ct")
+    # formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK, [(Types.TIME_STEP, "?t0")], "?ct")
 
     def no_negation_of(formula, predicate):
         return not reduce(lambda r, g: r or g.predicate == predicate and g.negated, formula.logical_formula, False)
@@ -80,6 +83,8 @@ def _create_object_mln(databases):
     formulas = _split_objects_of_different_type(formulas, Types.OBJECT)
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.OBJECT_PROPERTY, [(Types.OBJECT, "?o1")], "?op")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.OBJECT_LOCATION,
+                                                  [(Types.TIME_STEP, "?t0"), (Types.OBJECT, "?o1")], "?op")
     formulas = _add_not_perceived_or_not_acted_on_if_necessary(formulas, "?t0")
     mln.append_formulas(formulas)
     return mln

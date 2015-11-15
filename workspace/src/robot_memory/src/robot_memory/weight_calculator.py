@@ -18,7 +18,7 @@ class WeightCalculator(object):
 
     @staticmethod
     def __get_weight_for_frequency_one():
-        return 20
+        return 40
 
     @staticmethod
     def __get_ground_formulas(db, mln):

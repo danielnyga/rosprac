@@ -18,6 +18,7 @@ public class OwlConverter {
         mPublisher = sender;
         mConversionPolicies = 
             new TaskTreeConversionPolicy[]{
+                new RobohowPickAndPlacePolicy(sender),
                 new OldPickAndPlacePolicy(sender)
             };
     }
@@ -38,15 +39,22 @@ public class OwlConverter {
                 throws Exception;
         
     }
-    
+
     public void convert(String owlFileName) throws Exception {
         System.out.println("Extract from file " + owlFileName);
         OWLExtractor ex = OWLExtractor.crateExtractor(
                 new File(owlFileName), new HashSet<String>());
         Collection<Task> tasks = ex.getRootTasks();
-        if(tasks.size()!=1)
-            throw new Exception("Only one root task is supported!");
+        if(tasks.size()==0) {
+            throw new Exception("No root task found!");
+        }
         Task rootTask = tasks.iterator().next();
+        if(tasks.size()>1) {
+            System.out.println("Warning: found more than one root task!");
+            Task root = new Task();
+            root.setContext("Start");
+            root.getSubTasks().addAll(tasks);
+        }
         TaskTreeConversionPolicy policy = getFirstFittingPolicy(rootTask);        
         int sequenceNumber = 0;
         for(PreAndPostOrderTaskIterator iterator = 
@@ -87,9 +95,14 @@ public class OwlConverter {
         if(!(timeObject instanceof OWLLogElement))
             throw new Exception("The time object must be received by OWL");
         String timeString = ((OWLLogElement) timeObject).getOwlInstanceName();
-        if(!timeString.matches("timepoint_[0-9]+"))
-            throw new Exception("Wrong time format!");
-        int unixTime = Integer.parseInt(timeString.split("_")[1]);
+        int unixTime;
+        if(timeString.matches("timepoint_[0-9]+")) {
+            unixTime = Integer.parseInt(timeString.split("_")[1]);
+        } else if(timeString.matches("timepoint_[0-9]+.[0-9]+")) {
+            unixTime = Integer.parseInt(timeString.split("_")[1].split("\\.")[0]);
+        } else {
+            throw new Exception("Wrong time format: " + timeString + "!");
+        }
         toReturn.setCurrentTime(new Time(unixTime, 0));
         return toReturn;
     }

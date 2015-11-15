@@ -38,7 +38,7 @@ public class Task extends OWLLogElement {
         return mContext;
     }
     
-    void setContext(String context) {
+    public void setContext(String context) {
         mContext = context;
     }
     

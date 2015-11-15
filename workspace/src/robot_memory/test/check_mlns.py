@@ -1,14 +1,14 @@
 #!/usr/bin/python2
 
-from pracmln.mln.methods import LearningMethods, InferenceMethods
 from check import *
 import check_mln_statemachine
 import check_mln_object
 import check_mln_task
+import os
 
 
 def main(learn_weights=True):
-    output_prefix = "learnt_mlns/"
+    output_prefix = get_output_prefix()
     mln_names = ["StateMachine", "Task", "Object"]
     mlns = {}
     for mln_name in mln_names:
@@ -24,6 +24,16 @@ def main(learn_weights=True):
     for mln_name in mlns:
         print_to_cmd_line(mlns[mln_name])
     tests.print_results()
+
+
+def get_output_prefix():
+    to_return = ""
+    dirs = os.listdir(".")
+    dirs.sort()
+    for file_or_directory in dirs:
+        if file_or_directory.startswith("learnt_mlns_"):
+            to_return = file_or_directory
+    return to_return + "/"
 
 
 if __name__ == "__main__":

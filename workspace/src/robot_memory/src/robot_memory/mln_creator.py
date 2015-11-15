@@ -4,10 +4,8 @@ from robot_memory_constants import Types, Predicates
 from mln_elements import *
 from functools import partial
 from itertools import groupby
+import time
 import os
-
-
-_FILENAME_PREFIX = "learnt_mlns/"
 
 
 class MlnType(object):
@@ -24,15 +22,15 @@ def create_and_save_mlns(robot_state_messages, learner, debug=False):
         _create_task_mln(dbs),
         _create_object_mln(dbs),
     ]
-
-    if not os.path.isdir(_FILENAME_PREFIX):
-        os.mkdir(_FILENAME_PREFIX)
+    FILENAME_PREFIX = "learnt_mlns_" + time.strftime("%Y-%m-%d_%H-%M-%S") + "/"
+    if not os.path.isdir(FILENAME_PREFIX):
+        os.mkdir(FILENAME_PREFIX)
     if debug:
         for mln in mlns:
-            mln.save(_FILENAME_PREFIX + mln.name + "_before_learning")
-        dbs.save(_FILENAME_PREFIX + "train")
+            mln.save(FILENAME_PREFIX + mln.name + "_before_learning")
+        dbs.save(FILENAME_PREFIX + "train")
     for mln in mlns:
-        _learn_weights_and_save_mln(mln, dbs, learner)
+        _learn_weights_and_save_mln(mln, dbs, learner, FILENAME_PREFIX)
 
 
 def _create_state_machine_mln(databases):
@@ -87,9 +85,9 @@ def _create_object_mln(databases):
     return mln
 
 
-def _learn_weights_and_save_mln(mln, databases, learner):
+def _learn_weights_and_save_mln(mln, databases, learner, filename_prefix):
     resulting_mln = learner.learn(mln, databases)
-    f = open(_FILENAME_PREFIX + mln.name + ".mln", 'w')
+    f = open(filename_prefix + mln.name + ".mln", 'w')
     f.write(str(resulting_mln))
     f.close()
 
@@ -178,7 +176,7 @@ def _remove_duplicate_error_formulas(formulas):
             if formula_is_unique_without_error:
                 for error_atom in \
                         filter(lambda gnd_atom: gnd_atom.predicate==Predicates.ERROR, formula.logical_formula):
-                    formula.remove_ground_atom_from_conjunction(error_atom)
+                    formula.logical_formula.remove_element(error_atom)
     return list(set(to_return))
 
 

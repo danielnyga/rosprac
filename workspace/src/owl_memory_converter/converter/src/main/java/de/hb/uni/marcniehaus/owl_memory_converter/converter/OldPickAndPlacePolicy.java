@@ -4,13 +4,9 @@ import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.LogElement;
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.MongoLogElement;
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.OWLLogElement;
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.Task;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
+
+import java.util.*;
+
 import robot_memory.Object;
 import robot_memory.Tuple;
 
@@ -50,20 +46,14 @@ public class OldPickAndPlacePolicy implements
 
     @Override
     public List<Tuple> getParameters(Task t) throws Exception {
-//        Collection<String> goal = t.getOtherDataProperties().get("goalContext");
-//        if(goal==null) {
-//            return "";
-//        }
-//        if(goal.size()>1) {
-//            throw new Exception("Only one goal is supported!");
-//        }
-//        return goal.iterator().next();
         List<Tuple> toReturn = new LinkedList<>();
-        for(Map.Entry<String, Collection<String>> entry :
-                t.getOtherDataProperties().entrySet()) {
+        Map<String, Collection<String>> parameters = getPropertiesFromTask(t);
+        parameters.putAll(getPropertiesFromActionDesignator(t));
+        for(Map.Entry<String, Collection<String>> entry : parameters.entrySet()) {
             if(entry.getKey().equals("OWLName") ||
                     entry.getKey().equals("taskContext") ||
-                    entry.getKey().equals("OWLClassName")) {
+                    entry.getKey().equals("OWLClassName") ||
+                    entry.getKey().startsWith("_")) {
                 continue;
             }
             if(entry.getValue().size()!=1) {
@@ -129,6 +119,49 @@ public class OldPickAndPlacePolicy implements
                                 (MongoLogElement) designator, location));
                     }
                 }
+            }
+        }
+        return toReturn;
+    }
+
+    protected Map<String, Collection<String>> getPropertiesFromTask(Task t) throws Exception {
+        return t.getOtherDataProperties();
+    }
+
+    protected Map<String, Collection<String>> getPropertiesFromActionDesignator(Task t) throws Exception {
+        Map<String, Collection<String>> dataProperties = getDataPropertiesOfChildObjectProperty(
+                t, 3, new Predicate<LogElement>() {
+            @Override
+            public boolean test(LogElement element) {
+                Map<String, Collection<String>> dataProperties = element.getOtherDataProperties();
+                return  dataProperties.containsKey("_designator_type") &&
+                        dataProperties.get("_designator_type").size()==1 &&
+                        dataProperties.get("_designator_type").iterator().next().toLowerCase().equals("action")
+                        ||
+                        dataProperties.containsKey("_DESIGNATOR_TYPE") &&
+                        dataProperties.get("_DESIGNATOR_TYPE").size()==1 &&
+                        dataProperties.get("_DESIGNATOR_TYPE").iterator().next().toLowerCase().equals("action");
+            }
+        });
+        return dataProperties;
+    }
+
+    private interface Predicate<T> {
+        boolean test(T element);
+    }
+
+    private Map<String, Collection<String>> getDataPropertiesOfChildObjectProperty(
+            LogElement parent, int recursionDepth, Predicate<LogElement> dataPropertyTest) {
+        Map<String, Collection<String>> toReturn = new HashMap<>();
+        if(recursionDepth>0) {
+            for(Collection<LogElement> childCollection : parent.getOtherObjectProperties().values()) {
+                for(LogElement child : childCollection) {
+                    toReturn.putAll(getDataPropertiesOfChildObjectProperty(child, recursionDepth-1, dataPropertyTest));
+                }
+            }
+        } else {
+            if(dataPropertyTest.test(parent)) {
+                return parent.getOtherDataProperties();
             }
         }
         return toReturn;

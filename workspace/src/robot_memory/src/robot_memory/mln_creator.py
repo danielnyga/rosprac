@@ -54,17 +54,14 @@ def _create_state_machine_mln(databases):
 def _create_task_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK)
     formulas = []
-    # task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.CHILD_TASK, Predicates.ERROR,
-    #                    Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
-    #                    Predicates.CURRENT_TASK_FINISHED]
-    task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.ERROR,
-                        Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
-                        Predicates.CURRENT_TASK_FINISHED]
+    task_predicates = [Predicates.CURRENT_TASK, Predicates.CURRENT_PARENT_TASK, Predicates.CHILD_TASK, Predicates.ERROR,
+                       Predicates.CURRENT_PARAMETER, Predicates.PARENT_PARAMETER, Predicates.DURATION,
+                       Predicates.CURRENT_TASK_FINISHED]
     formulas += _get_formula_templates_from_databases(databases, task_predicates,
                                                       [Predicates.CURRENT_TASK, Predicates.CURRENT_TASK_FINISHED])
     formulas = _apply_replacements(formulas, [(Types.TIME_STEP, "?t"), (Types.OBJECT, "?o")])
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.ERROR, [(Types.TIME_STEP, "?t0")], "?e")
-    # formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK, [(Types.TIME_STEP, "?t0")], "?ct")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.CHILD_TASK, [(Types.TIME_STEP, "?t0")], "?ct")
 
     def no_negation_of(formula, predicate):
         return not reduce(lambda r, g: r or g.predicate == predicate and g.negated, formula.logical_formula, False)

@@ -5,8 +5,8 @@ from sys import stdout
 
 LOGIC = "FirstOrderLogic"
 GRAMMAR = "PRACGrammar"
-INFERENCE_METHOD = InferenceMethods.EnumerationAsk
-LEARNING_METHOD = LearningMethods.BPLL
+INFERENCE_METHOD = InferenceMethods.FastExact
+LEARNING_METHOD = LearningMethods.CountFrequency
 
 
 def learn(mln_name, db_name):

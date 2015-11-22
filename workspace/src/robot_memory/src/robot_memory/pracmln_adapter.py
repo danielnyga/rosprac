@@ -5,7 +5,7 @@ from StringIO import StringIO
 
 LOGIC = "FirstOrderLogic"
 GRAMMAR = "PRACGrammar"
-LEARNING_METHOD = LearningMethods.BPLL
+LEARNING_METHOD = LearningMethods.CountFrequency
 
 
 class PracmlnAdapter(object):

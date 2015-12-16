@@ -48,12 +48,14 @@ public class OwlConverter {
         if(tasks.size()==0) {
             throw new Exception("No root task found!");
         }
-        Task rootTask = tasks.iterator().next();
+        Task rootTask;
         if(tasks.size()>1) {
             System.out.println("Warning: found more than one root task!");
-            Task root = new Task();
-            root.setContext("Start");
-            root.getSubTasks().addAll(tasks);
+            rootTask = new Task();
+            rootTask.setContext("Start");
+            rootTask.getSubTasks().addAll(tasks);
+        } else {
+            rootTask = tasks.iterator().next();
         }
         TaskTreeConversionPolicy policy = getFirstFittingPolicy(rootTask);        
         int sequenceNumber = 0;

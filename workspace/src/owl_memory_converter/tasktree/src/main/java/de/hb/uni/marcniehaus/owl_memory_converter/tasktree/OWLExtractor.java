@@ -15,6 +15,7 @@
 package de.hb.uni.marcniehaus.owl_memory_converter.tasktree;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -25,20 +26,14 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 import org.semanticweb.owlapi.apibinding.OWLManager;
-import org.semanticweb.owlapi.model.IRI;
-import org.semanticweb.owlapi.model.OWLAnnotationAssertionAxiom;
-import org.semanticweb.owlapi.model.OWLClassAssertionAxiom;
-import org.semanticweb.owlapi.model.OWLClassExpression;
-import org.semanticweb.owlapi.model.OWLDataProperty;
-import org.semanticweb.owlapi.model.OWLDataPropertyAssertionAxiom;
-import org.semanticweb.owlapi.model.OWLEntity;
-import org.semanticweb.owlapi.model.OWLIndividual;
-import org.semanticweb.owlapi.model.OWLLiteral;
-import org.semanticweb.owlapi.model.OWLNamedIndividual;
-import org.semanticweb.owlapi.model.OWLObjectPropertyAssertionAxiom;
-import org.semanticweb.owlapi.model.OWLOntology;
-import org.semanticweb.owlapi.model.OWLOntologyManager;
+import org.semanticweb.owlapi.io.IRIDocumentSource;
+import org.semanticweb.owlapi.io.OWLOntologyDocumentSource;
+import org.semanticweb.owlapi.model.*;
+import org.semanticweb.owlapi.util.PriorityCollection;
 import uk.ac.manchester.cs.owl.owlapi.OWLNamedIndividualImpl;
+import uk.ac.manchester.cs.owl.owlapi.ParsableOWLOntologyFactory;
+
+import javax.annotation.Nonnull;
 
 /**
  *
@@ -56,7 +51,24 @@ public class OWLExtractor {
     }
     
     private OWLExtractor(File owlFile) throws Exception {
-        OWLOntologyManager manager = new OWLManager().get();      
+        String path = owlFile.getAbsolutePath();
+        String[] pathParts = path.split(File.separator);
+        if(pathParts.length<4)
+            throw new Exception("Path must contain at least 4 parts in order to resolve the database name!");
+        String databaseName = pathParts[pathParts.length-4] + "_" + pathParts[pathParts.length-3];
+        mMongoExtractor = new  MongoExtractor(databaseName);
+        OWLOntologyManager manager = new OWLManager().get();
+        PriorityCollection<OWLOntologyFactory> factories = manager.getOntologyFactories();
+        OWLOntologyFactory originalFactory = null;
+        for(OWLOntologyFactory factory : factories) {
+            if(factory instanceof ParsableOWLOntologyFactory) {
+                originalFactory = factory;
+            }
+        }
+        if(originalFactory==null) {
+            throw new Exception("No ParsableOWLOntologyFactory found!");
+        }
+        factories.add(new RosOntologyFactory(originalFactory));
         mOntology=manager.loadOntologyFromOntologyDocument(owlFile);
     }
     
@@ -228,10 +240,17 @@ public class OWLExtractor {
     private OWLNamedIndividual getIndividualFromIRI(IRI iri, boolean throwError) 
             throws Exception {
         Set<OWLEntity> entities = mOntology.getEntitiesInSignature(iri);
-        if(entities.size()!=1 || 
+        if(entities.size()!=1 ||
                 !(entities.iterator().next() instanceof OWLNamedIndividual)) {
             if(throwError) {
-                throw new Exception("Invalid IRI!");
+                if(entities.size()<1) {
+                    throw new Exception("Invalid IRI: " + iri + "!: Found 0 entities!");
+                } else if(entities.size()>1) {
+                    System.out.println("Warning: Invalid IRI: " + iri + "! Found " + entities.size() + " entities!");
+                }
+                if(!(entities.iterator().next() instanceof  OWLNamedIndividual)) {
+                    throw new Exception("Invalid IRI: "+ iri +"!: Not a named individual" );
+                }
             } else {
                 return null;
             }
@@ -401,8 +420,86 @@ public class OWLExtractor {
         }
         return subTasks;
     }
+
+    private class RosOntologyFactory implements OWLOntologyFactory {
+
+        public RosOntologyFactory(OWLOntologyFactory proxyFactory) {
+            mProxyFactory = proxyFactory;
+        }
+
+        @Nonnull
+        @Override
+        public OWLOntology createOWLOntology(OWLOntologyManager owlOntologyManager,
+                                             OWLOntologyID owlOntologyID,
+                                             IRI iri,
+                                             OWLOntologyCreationHandler owlOntologyCreationHandler)
+                                            throws OWLOntologyCreationException {
+            return mProxyFactory.createOWLOntology(owlOntologyManager, owlOntologyID, iri, owlOntologyCreationHandler);
+        }
+
+        @Nonnull
+        @Override
+        public OWLOntology loadOWLOntology(@Nonnull OWLOntologyManager owlOntologyManager,
+                                           @Nonnull OWLOntologyDocumentSource owlOntologyDocumentSource,
+                                           @Nonnull OWLOntologyCreationHandler owlOntologyCreationHandler,
+                                           @Nonnull OWLOntologyLoaderConfiguration owlOntologyLoaderConfiguration)
+                                            throws OWLOntologyCreationException {
+
+            if(owlOntologyDocumentSource.getDocumentIRI().toString().toLowerCase().startsWith("package://")) {
+                owlOntologyDocumentSource = new IRIDocumentSource(IRI.create(
+                        "file://" + getRosPackageFilePath(owlOntologyDocumentSource.getDocumentIRI().toString())));
+            }
+            return mProxyFactory.loadOWLOntology(owlOntologyManager, owlOntologyDocumentSource,
+                    owlOntologyCreationHandler, owlOntologyLoaderConfiguration);
+        }
+
+        @Override
+        public boolean canCreateFromDocumentIRI(@Nonnull IRI iri) {
+            return mProxyFactory.canCreateFromDocumentIRI(iri);
+        }
+
+        @Override
+        public boolean canLoad(@Nonnull OWLOntologyDocumentSource owlOntologyDocumentSource) {
+            if (owlOntologyDocumentSource.getDocumentIRI().toString().toLowerCase().startsWith("package://")) {
+                return getRosPackageFilePath(owlOntologyDocumentSource.getDocumentIRI().toString())!=null;
+            }
+            return mProxyFactory.canLoad(owlOntologyDocumentSource);
+        }
+
+        private String getRosPackageFilePath(String packageUrl) {
+            final String fileSuffix = packageUrl.substring("package://".length());
+            Map<String, String> envVars = System.getenv();
+            final String packagePathEnvVar = "ROS_PACKAGE_PATH";
+            if(!envVars.containsKey(packagePathEnvVar))
+                return null;
+            for(String pathPrefix : envVars.get(packagePathEnvVar).split(File.pathSeparator)) {
+                File pathFile = new File(pathPrefix);
+                if(!pathFile.exists())
+                    continue;
+                String foundFile = findFileInDirectory(pathFile, fileSuffix);
+                if(foundFile!=null)
+                    return foundFile;
+            }
+            return null;
+        }
+
+        private String findFileInDirectory(File directory, final String fileSuffix) {
+            for(File file : directory.listFiles()) {
+                if(file.isDirectory()) {
+                    String foundFile = findFileInDirectory(file, fileSuffix);
+                    if(foundFile!=null)
+                        return foundFile;
+                } else if(file.getAbsolutePath().endsWith(fileSuffix)) {
+                    return file.getAbsolutePath();
+                }
+            }
+            return null;
+        }
+
+        private OWLOntologyFactory mProxyFactory;
+    }
     
     private final OWLOntology mOntology;
     private Map<IRI, OWLLogElement> mElements;
-    private final MongoExtractor mMongoExtractor = new MongoExtractor();
+    private final MongoExtractor mMongoExtractor;
 }

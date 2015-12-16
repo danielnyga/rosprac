@@ -30,10 +30,10 @@ import org.bson.Document;
  * @author marc
  */
 public class MongoExtractor {
-    public MongoExtractor() throws Exception {
+    public MongoExtractor(String databaseName) throws Exception {
         mMongoCLient = new MongoClient("localhost", 27017);
-        MongoDatabase db = mMongoCLient.getDatabase("experiments");
-        mDesignatorCollection = db.getCollection("pnp-logged_designators");
+        MongoDatabase db = mMongoCLient.getDatabase(databaseName);
+        mDesignatorCollection = db.getCollection("logged_designators");
         
     }
     

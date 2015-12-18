@@ -1,0 +1,3 @@
+[submodule "pracmln"]
+	path = pracmln
+	url = git@github.com:danielnyga/pracmln-dev.git

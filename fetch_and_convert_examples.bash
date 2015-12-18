@@ -42,6 +42,10 @@ LOGFILES=(
 	"Perception/table-top-scene1/episode1/log.owl"
 )
 
+cd pracmln
+python setup.py
+source env.sh
+cd ..
 mkdir -p logs
 for LOGFILE in ${LOGFILES[*]}; do
 	if [ ! -f "logs/$LOGFILE" ]; then

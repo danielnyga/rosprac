@@ -18,8 +18,8 @@ def create_and_save_mlns(robot_state_messages, learner, debug=False):
     preprocessed_messages = robot_state_preprocessor.extract_additional_relations(robot_state_messages)
     dbs = database_creator.create_database_collection(preprocessed_messages)
     mlns = [
-#        _create_state_machine_mln(dbs),
-#        _create_task_mln(dbs),
+        _create_state_machine_mln(dbs),
+        _create_task_mln(dbs),
         _create_object_mln(dbs),
     ]
     FILENAME_PREFIX = "learnt_mlns_" + time.strftime("%Y-%m-%d_%H-%M-%S") + "/"

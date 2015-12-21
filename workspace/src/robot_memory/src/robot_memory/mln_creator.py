@@ -18,8 +18,8 @@ def create_and_save_mlns(robot_state_messages, learner, debug=False):
     preprocessed_messages = robot_state_preprocessor.extract_additional_relations(robot_state_messages)
     dbs = database_creator.create_database_collection(preprocessed_messages)
     mlns = [
-        _create_state_machine_mln(dbs),
-        _create_task_mln(dbs),
+#        _create_state_machine_mln(dbs),
+#        _create_task_mln(dbs),
         _create_object_mln(dbs),
     ]
     FILENAME_PREFIX = "learnt_mlns_" + time.strftime("%Y-%m-%d_%H-%M-%S") + "/"
@@ -43,10 +43,11 @@ def _create_state_machine_mln(databases):
     for formula in formulas:
         if not [gnd_atom for gnd_atom in formula.logical_formula if gnd_atom.predicate == Predicates.NEXT_TASK]:
             formula.logical_formula.add_element(~Predicates.NEXT_TASK_FINISHED("?t"))
-    formulas = _add_not_error_atom_if_necessary(formulas)
-    formulas = _remove_duplicate_error_formulas(formulas)
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.ERROR, [(Types.TIME_STEP, "?t0")], "?e")
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_PARAMETER, [(Types.TIME_STEP, "?t0")], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_TASK, [(Types.TIME_STEP, "?ts")], "?nt")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.NEXT_TASK, [(Types.TIME_STEP, "?t0")], "?nt")
+    formulas = _add_negation_for_all_but_existing(
+        formulas, Predicates.CURRENT_PARAMETER, [(Types.TIME_STEP, "?t0")], "?p")
     mln.append_formulas(formulas)
     return mln
 
@@ -131,57 +132,6 @@ def _apply_replacements(formulas, formula_replacements):
     return list(set(formulas))
 
 
-def _add_not_error_atom_if_necessary(formulas):
-    is_error_ground_atom = lambda atom: atom.predicate == Predicates.ERROR and not atom.negated
-    formulas_with_error = filter(lambda f: not not filter(is_error_ground_atom, f.logical_formula), formulas)
-    for error_formula in formulas_with_error:
-        errors = filter(is_error_ground_atom, error_formula.logical_formula)
-        error = None
-        if len(errors) > 1:
-            raise Exception("Only one error is currently supported!")
-        else:
-            error = errors[0]
-        predicates_to_remove = {Predicates.ERROR, Predicates.NEXT_TASK,
-                                Predicates.NEXT_TASK_FINISHED, Predicates.NEXT_PARAMETER}
-        remove_error_next = lambda f: filter(lambda g: g.predicate not in predicates_to_remove, f.logical_formula)
-        formulas_are_similar = lambda pre_process, f: \
-            pre_process(f) == pre_process(error_formula) and error not in f.logical_formula
-        similar_formulas = filter(partial(formulas_are_similar, remove_error_next), formulas)
-        for similar_formula in similar_formulas:
-            similar_formula.logical_formula.add_element(~error)
-    return formulas
-
-
-def _remove_duplicate_error_formulas(formulas):
-    to_return = formulas
-    target_state_predicates = {Predicates.NEXT_TASK, Predicates.NEXT_TASK_FINISHED, Predicates.NEXT_PARAMETER}
-    formulas = filter(lambda f: Predicates.ERROR in [gnd_atom.predicate for gnd_atom in f.logical_formula], formulas)
-    target_predicates_in_formula = \
-        lambda f: str(filter(lambda g: g.predicate in target_state_predicates, f.logical_formula))
-    formulas.sort(key=target_predicates_in_formula)
-    groups = groupby(formulas, key=target_predicates_in_formula)
-    groups = [[(formula, set(formula.logical_formula)) for formula in group] for _, group in groups]
-    for group in groups:
-        for formula_set_pair in group:
-            formula = formula_set_pair[0]
-            predicate_is_not_error_or_target = lambda p: p!=Predicates.ERROR and p not in target_state_predicates
-            formula_without_error = \
-                set(filter(lambda gnd: predicate_is_not_error_or_target(gnd.predicate), formula.logical_formula))
-            formula_is_unique_without_error = True
-            for other_group in groups:
-                if other_group == group:
-                    continue
-                for formula_and_set_from_other_group in other_group:
-                    other_formula_set = formula_and_set_from_other_group[1]
-                    if other_formula_set.issuperset(formula_without_error):
-                        formula_is_unique_without_error = False
-            if formula_is_unique_without_error:
-                for error_atom in \
-                        filter(lambda gnd_atom: gnd_atom.predicate==Predicates.ERROR, formula.logical_formula):
-                    formula.logical_formula.remove_element(error_atom)
-    return list(set(to_return))
-
-
 def _add_not_perceived_or_not_acted_on_if_necessary(formulas, timestep):
     for formula in formulas:
         perceived = set()
@@ -204,27 +154,6 @@ def _add_not_perceived_or_not_acted_on_if_necessary(formulas, timestep):
     return formulas
 
 
-def _split_multiple_groundings_of_same_predicate(formulas):
-    to_return = []
-    for formula in formulas:
-        predicate_count = dict()
-        for gnd_atom in formula.logical_formula:
-            predicate = gnd_atom.predicate
-            predicate_count[predicate] = 1 if predicate not in predicate_count else predicate_count[predicate]+1
-        duplicate_predicates = [predicate for predicate, count in predicate_count.items() if count > 1]
-        if not duplicate_predicates:
-            to_return.append(formula)
-            continue
-        if len(duplicate_predicates) > 1:
-            raise Exception("Only one duplicate predicate is supported")
-        duplicate_predicate = duplicate_predicates[0]
-        duplicate_atoms = filter(lambda atom: atom.predicate == duplicate_predicate, formula.logical_formula)
-        other_atoms = filter(lambda atom: atom.predicate != duplicate_predicate, formula.logical_formula)
-        create_conjunction = lambda gnd_atoms: Conjunction([FormulaGroundAtom(gnd_atom) for gnd_atom in gnd_atoms])
-        to_return += [Formula(formula.weight, create_conjunction(other_atoms + [dupl])) for dupl in duplicate_atoms]
-    return to_return
-
-
 def _split_objects_of_different_type(formulas, type_to_split):
     to_return = []
     create_conjunction = lambda gnd_atoms: Conjunction([FormulaGroundAtom(gnd_atom) for gnd_atom in gnd_atoms])
@@ -238,14 +167,6 @@ def _split_objects_of_different_type(formulas, type_to_split):
         for _, group in groupby(atoms_with_type, key=lambda atom: atom.get_argument_value(type_to_split)):
             to_return.append(Formula(formula.weight, create_conjunction(atoms_without_type + list(group))))
     return to_return
-
-
-def _add_expand_operator(formulas, predicates_with_star_operator):
-    for formula in formulas:
-        for ground_atom in formula.logical_formula:
-            if ground_atom.predicate in predicates_with_star_operator:
-                ground_atom.apply_expand_operator = True
-    return formulas
 
 
 def _add_negation_for_all_but_existing(formulas, predicate, fixed_types_with_value, prefix):
@@ -262,10 +183,4 @@ def _add_negation_for_all_but_existing(formulas, predicate, fixed_types_with_val
             exceptions.append(gnd_atom_exception)
         formula.logical_formula.add_element(
             ClosedWorldGroundAtoms(predicate, fixed_types_with_value, exceptions, prefix))
-    return formulas
-
-
-def _add_atom_to_every_formula(formulas, atom):
-    for formula in formulas:
-        formula.logical_formula.add_element(atom)
     return formulas

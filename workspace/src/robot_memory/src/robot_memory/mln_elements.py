@@ -71,6 +71,9 @@ class Predicate(object):
             raise Exception("keyword arguments are not supported!")
         if len(args) != len(self.__types):
             raise Exception("Invalid number of arguments: " + str(len(self.__types)) + "required!")
+        for arg in args:
+            if str(arg) == "":
+                raise Exception("Empty strings are not supported as predicate arguments!")
         return GroundAtom(self, zip(self.__types, args))
 
     def __str__(self):

@@ -73,7 +73,11 @@ class Predicate(object):
             raise Exception("Invalid number of arguments: " + str(len(self.__types)) + "required!")
         for arg in args:
             if str(arg) == "":
-                raise Exception("Empty strings are not supported as predicate arguments!")
+                raise Exception(
+                    "Empty strings are not supported as predicate arguments: "
+                    + self.__predicate_name
+                    + str(args)
+                )
         return GroundAtom(self, zip(self.__types, args))
 
     def __str__(self):
@@ -135,7 +139,7 @@ class DatabaseCollection(object):
         return iter(self.__databases)
 
     def __str__(self):
-        return reduce(lambda db1, db2: str(db1) + "\n---\n" + str(db2), self.__databases)
+        return str(reduce(lambda db1, db2: str(db1) + "\n---\n" + str(db2), self.__databases))
 
     def __repr__(self):
         return self.__str__()
@@ -404,7 +408,7 @@ class MLN(object):
         header.sort()
         formulas = map(str, self.__formulas)
         formulas.sort()
-        return reduce(lambda l1, l2: str(l1) + "\n" + str(l2), header + formulas)
+        return str(reduce(lambda l1, l2: str(l1) + "\n" + str(l2), header + formulas))
 
     def __repr__(self):
         return self.__str__()

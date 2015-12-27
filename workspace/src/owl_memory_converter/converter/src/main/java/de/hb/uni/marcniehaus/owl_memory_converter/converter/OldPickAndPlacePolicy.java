@@ -243,11 +243,16 @@ public class OldPickAndPlacePolicy implements
         o.setProperties(properties);
         for(Map.Entry<String, Collection<String>> propertyGroup : 
                 designator.getOtherDataProperties().entrySet()) {
-            if(propertyGroup.getKey().equals(("NAME"))) {
+            if(propertyGroup.getKey().toLowerCase().equals(("name"))) {
                 for(String property : propertyGroup.getValue()) {
                     o.setObjectId(property);
                 }
-            } else if(propertyGroup.getKey().equals("TYPE")) {
+            } else if(propertyGroup.getKey().toLowerCase().equals("_id")
+                    && o.getObjectId().equals("")) {
+                for(String property : propertyGroup.getValue()) {
+                    o.setObjectId(property);
+                }
+            } else if(propertyGroup.getKey().toLowerCase().equals("type")) {
                 for(String property : propertyGroup.getValue()) {
                     o.setObjectType(property);
                 }

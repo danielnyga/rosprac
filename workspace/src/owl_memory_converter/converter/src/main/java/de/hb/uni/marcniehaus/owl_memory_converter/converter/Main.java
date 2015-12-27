@@ -22,6 +22,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
+
+import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.Task;
 import org.ros.exception.RemoteException;
 import org.ros.internal.loader.CommandLineLoader;
 import org.ros.internal.message.Message;
@@ -85,18 +87,26 @@ public class Main extends AbstractNodeMain
     public void onStart(final ConnectedNode connectedNode) {
         try{
             initCommunication(connectedNode);
-            TriggerResponse tresponse = mStartTrainingTrigger.call(
-                mStartTrainingTrigger.newMessage());            
-            SynchronousService.throwErrorIfTriggerFailed(
-                    tresponse.getSuccess(), tresponse.getMessage());
             OwlConverter converter = new OwlConverter(this);
-            converter.convert(mOwlFileName);
-            LearningTriggerRequest request = mLearnTrigger.newMessage();
-            connectedNode.getLog().info("Waiting for learner to finish...");
-            request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
-            LearningTriggerResponse lresponse = mLearnTrigger.call(request);
-                        SynchronousService.throwErrorIfTriggerFailed(
-                    lresponse.getSuccess(), lresponse.getMessage());
+            for(Task rootTask : converter.getRootTasks(mOwlFileName)) {
+                try {
+                    mNumberOfPublishedStates = 0;
+                    TriggerResponse tresponse = mStartTrainingTrigger.call(
+                            mStartTrainingTrigger.newMessage());
+                    SynchronousService.throwErrorIfTriggerFailed(
+                            tresponse.getSuccess(), tresponse.getMessage());
+                    converter.convert(rootTask);
+                    LearningTriggerRequest request = mLearnTrigger.newMessage();
+                    connectedNode.getLog().info("Waiting for learner to finish...");
+                    request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
+                    LearningTriggerResponse lresponse = mLearnTrigger.call(request);
+                    SynchronousService.throwErrorIfTriggerFailed(
+                            lresponse.getSuccess(), lresponse.getMessage());
+                } catch (Exception e) {
+                    connectedNode.getLog().error("Caught Exception: " + e.getMessage());
+                    e.printStackTrace(System.err);
+                }
+            }
         } catch(Exception e){
             connectedNode.getLog().error("Caught Exception: " + e.getMessage());
             e.printStackTrace(System.err);
@@ -199,7 +209,7 @@ public class Main extends AbstractNodeMain
             <TriggerRequest, TriggerResponse> mStartTrainingTrigger;
     private SynchronousService 
             <LearningTriggerRequest, LearningTriggerResponse> mLearnTrigger;
-    private long mNumberOfPublishedStates = 0;
+    private long mNumberOfPublishedStates;
     private final String mOwlFileName;
     private NodeConfiguration mConfig;
 }

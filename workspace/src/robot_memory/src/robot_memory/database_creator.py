@@ -43,7 +43,8 @@ def create_database_collection(preprocessed_states):
             db.append(Predicates.USED_OBJECT(current_time, __escape(object.object_id)))
             objects.append(object)
         for object in objects:  # TODO: filter duplicate objects
-            db.append(Predicates.OBJECT_TYPE(__escape(object.object_id), __escape(object.object_type)))
+            if object.object_type != "":
+                db.append(Predicates.OBJECT_TYPE(__escape(object.object_id), __escape(object.object_type)))
             if object.object_location != "":
                 db.append(Predicates.OBJECT_LOCATION(
                     current_time, __escape(object.object_id), __escape(object.object_location)))

@@ -240,22 +240,16 @@ public class OWLExtractor {
     private OWLNamedIndividual getIndividualFromIRI(IRI iri, boolean throwError) 
             throws Exception {
         Set<OWLEntity> entities = mOntology.getEntitiesInSignature(iri);
-        if(entities.size()!=1 ||
-                !(entities.iterator().next() instanceof OWLNamedIndividual)) {
-            if(throwError) {
-                if(entities.size()<1) {
-                    throw new Exception("Invalid IRI: " + iri + "!: Found 0 entities!");
-                } else if(entities.size()>1) {
-                    System.out.println("Warning: Invalid IRI: " + iri + "! Found " + entities.size() + " entities!");
-                }
-                if(!(entities.iterator().next() instanceof  OWLNamedIndividual)) {
-                    throw new Exception("Invalid IRI: "+ iri +"!: Not a named individual" );
-                }
-            } else {
-                return null;
+        for(OWLEntity entity : entities) {
+            if(entity.isOWLNamedIndividual()) {
+                return (OWLNamedIndividual) entity;
             }
         }
-        return (OWLNamedIndividual) entities.iterator().next();
+        if(throwError) {
+            throw new Exception("Invalid IRI: " + iri + ": found no named individual");
+        } else {
+            return null;
+        }
     }
     
     private String getTaskContext(OWLIndividual task) {

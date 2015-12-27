@@ -40,24 +40,15 @@ public class OwlConverter {
         
     }
 
-    public void convert(String owlFileName) throws Exception {
+    public Collection<Task> getRootTasks(String owlFileName) throws Exception {
         System.out.println("Extract from file " + owlFileName);
         OWLExtractor ex = OWLExtractor.crateExtractor(
                 new File(owlFileName), new HashSet<String>());
-        Collection<Task> tasks = ex.getRootTasks();
-        if(tasks.size()==0) {
-            throw new Exception("No root task found!");
-        }
-        Task rootTask;
-        if(tasks.size()>1) {
-            System.out.println("Warning: found more than one root task!");
-            rootTask = new Task();
-            rootTask.setContext("Start");
-            rootTask.getSubTasks().addAll(tasks);
-        } else {
-            rootTask = tasks.iterator().next();
-        }
-        TaskTreeConversionPolicy policy = getFirstFittingPolicy(rootTask);        
+        return ex.getRootTasks();
+    }
+
+    public void convert(Task rootTask) throws Exception {
+        TaskTreeConversionPolicy policy = getFirstFittingPolicy(rootTask);
         int sequenceNumber = 0;
         for(PreAndPostOrderTaskIterator iterator = 
                 new PreAndPostOrderTaskIterator(rootTask, policy);
@@ -67,11 +58,11 @@ public class OwlConverter {
             mPublisher.send(s);
         }
     }
-    
-    private RobotState getState(PreAndPostOrderTaskIterator iterator, 
-                                int sequenceNumber, 
+
+    private RobotState getState(PreAndPostOrderTaskIterator iterator,
+                                int sequenceNumber,
                                 TaskTreeConversionPolicy conversionPolicy)
-                            throws Exception {
+            throws Exception {
         RobotState toReturn = mPublisher.createMessage(RobotState._TYPE);
         toReturn.setFinished(iterator.currentHasBeenVisitedBefore());
         toReturn.setTaskId(iterator.current().getOwlInstanceName());
@@ -86,13 +77,13 @@ public class OwlConverter {
                 conversionPolicy.getUsedObjects(iterator.current()));
         toReturn.setPerceivedObjects(
                 conversionPolicy.getPerceivedObjects(iterator.current()));
-        
-        String timeProperty = iterator.currentHasBeenVisitedBefore() 
+
+        String timeProperty = iterator.currentHasBeenVisitedBefore()
                 ? "endTime" : "startTime";
         Collection<LogElement> timeObjects = iterator.current().
-                        getOtherObjectProperties().get(timeProperty);
+                getOtherObjectProperties().get(timeProperty);
         if(timeObjects==null || timeObjects.size()!=1)
-            throw new Exception("No start or end time found!");        
+            throw new Exception("No start or end time found!");
         LogElement timeObject = timeObjects.iterator().next();
         if(!(timeObject instanceof OWLLogElement))
             throw new Exception("The time object must be received by OWL");

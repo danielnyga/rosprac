@@ -89,7 +89,10 @@ def _create_object_mln(databases):
 
 
 def _learn_weights_and_save_mln(mln, databases, learner, filename_prefix):
-    resulting_mln = learner.learn(mln, databases)
+    if len(mln.formulas) == 0:
+        resulting_mln = mln
+    else:
+        resulting_mln = learner.learn(mln, databases)
     f = open(filename_prefix + mln.name + ".mln", 'w')
     f.write(str(resulting_mln))
     f.close()

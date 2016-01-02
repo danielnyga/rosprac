@@ -29,8 +29,12 @@ def create_and_save_mlns(robot_state_messages, learner, debug=False):
         for mln in mlns:
             mln.save(FILENAME_PREFIX + mln.name + "_before_learning")
         dbs.save(FILENAME_PREFIX + "train")
+        _write_ground_atoms_to_file(dbs, FILENAME_PREFIX + "ground_atoms")
     for mln in mlns:
         _learn_weights_and_save_mln(mln, dbs, learner, FILENAME_PREFIX)
+
+
+
 
 
 def _create_state_machine_mln(databases):
@@ -187,3 +191,15 @@ def _add_negation_for_all_but_existing(formulas, predicate, fixed_types_with_val
         formula.logical_formula.add_element(
             ClosedWorldGroundAtoms(predicate, fixed_types_with_value, exceptions, prefix))
     return formulas
+
+
+def _write_ground_atoms_to_file(database_collection, file_name):
+        ground_atoms = reduce(lambda x, y: x+list(y), database_collection, [])
+        ground_atoms = deepcopy(ground_atoms)
+        for atom in ground_atoms:
+            atom.set_argument_value(Types.TIME_STEP, "?t")
+        ground_atoms = list(set(ground_atoms))
+        ground_atoms.sort(key=lambda x: str(x))
+        f = open(file_name + ".txt", 'w')
+        f.write(str(reduce(lambda x, y: str(x) + "\n" + str(y), ground_atoms)) if len(ground_atoms) > 0 else "")
+        f.close()

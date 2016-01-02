@@ -41,7 +41,7 @@ public class RobohowPickAndPlacePolicy extends OldPickAndPlacePolicy {
     protected Map<String, Collection<String>> getPropertiesFromTask(Task t) throws Exception {
         Map<String, Collection<String>> toReturn = new HashMap<>();
         for(Map.Entry<String, Collection<String>> entry : super.getPropertiesFromTask(t).entrySet()) {
-            if (entry.getKey().equals("ARM")) {
+            if (entry.getKey().equals(ARM)) {
                 String elements = "";
                 for(String value : entry.getValue()) {
                     elements = elements + ", " + value;

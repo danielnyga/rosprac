@@ -65,5 +65,5 @@ for LOGFILE in ${LOGFILES[*]}; do
 	rosrun owl_memory_converter converter/build/install/converter/bin/converter "../logs/$LOGFILE" >> client.log 2>&1
 done
 echo "Finished!"
-kill $!
+kill `jobs -p`
 rm typescript

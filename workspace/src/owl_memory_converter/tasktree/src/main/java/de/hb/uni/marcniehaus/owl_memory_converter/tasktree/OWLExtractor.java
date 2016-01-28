@@ -16,15 +16,8 @@ package de.hb.uni.marcniehaus.owl_memory_converter.tasktree;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
+
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.io.IRIDocumentSource;
 import org.semanticweb.owlapi.io.OWLOntologyDocumentSource;
@@ -80,6 +73,23 @@ public class OWLExtractor {
                 toReturn.add((Task) t);
             }
         }
+        Collections.sort(toReturn, new Comparator<Task>() {
+            @Override
+            public int compare(Task t0, Task t1) {
+                return getTimePoint(t0).compareTo(getTimePoint(t1));
+            }
+
+            private String getTimePoint(Task t) {
+                if(!t.getOtherObjectProperties().containsKey(Constants.PROPERTY_NAME_START_TIME))
+                    return "";
+                for(LogElement timePoint: t.getOtherObjectProperties().get(Constants.PROPERTY_NAME_START_TIME)) {
+                    if(!(timePoint instanceof OWLLogElement))
+                        return "";
+                    return ((OWLLogElement) timePoint).getOwlInstanceName();
+                }
+                return "";
+            }
+        });
         return toReturn;        
     }
     

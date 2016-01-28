@@ -21,6 +21,7 @@ import java.util.HashSet;
  * @author marc
  */
 public class Constants {
+    public static final String PROPERTY_NAME_START_TIME = "startTime";
     public static final String CLASS_NAME_DESIGNATOR = "CRAMDesignator";
     public static final String IRI_NAMED_INDIVIDUAL = "owl:namedIndividual";
     public static final String PROPERTY_NAME_TASK_CONTEXT = "taskContext";    

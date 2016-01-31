@@ -16,3 +16,4 @@
 
 include 'tasktree'
 include 'converter'
+include 'taskHierarchy'

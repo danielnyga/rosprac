@@ -1,0 +1,10 @@
+uint32 sequence_number
+string task_id
+string task_name
+string goal_context
+bool finished
+bool success
+time current_time
+Tuple[] goal_properties
+Tuple[] designator_key_to_designator_id
+Designator[] aggregated_child_designators

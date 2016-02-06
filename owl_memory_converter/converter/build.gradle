@@ -29,7 +29,7 @@ mainClassName = 'de.hb.uni.marcniehaus.owl_memory_converter.converter.Main'
 dependencies {
   /* An external maven artifact dependency */
   compile 'org.ros.rosjava_core:rosjava:[0.2,0.3)'
-  compile 'org.ros.rosjava_messages:robot_memory:0.0.1'
+  compile 'org.ros.rosjava_messages:task_tree_msgs:0.0.0'
   compile 'org.slf4j:slf4j-simple:1.7.12'
   /* Example of a local subproject dependency */ 
   compile project(':tasktree')

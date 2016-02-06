@@ -22,7 +22,13 @@ import java.util.HashSet;
  */
 public class Constants {
     public static final String PROPERTY_NAME_START_TIME = "startTime";
+    public static final String PROPERTY_NAME_DESIGNATOR = "designator";
+    public static final String PROPERTY_NAME_PARAMETERS = "PARAMETERS";
     public static final String CLASS_NAME_DESIGNATOR = "CRAMDesignator";
+    public static final String CLASS_NAME_ACTION_DESIGNATOR = "CRAMActionDesignator";
+    public static final String CLASS_NAME_LOCATION_DESIGNATOR = "CRAMLocationDesignator";
+    public static final String CLASS_NAME_OBJECT_DESIGNATOR = "CRAMObjectDesignator";
+    public static final String CLASS_NAME_HUMAN_DESIGNATOR = "CRAMHumanDesignator";
     public static final String IRI_NAMED_INDIVIDUAL = "owl:namedIndividual";
     public static final String PROPERTY_NAME_TASK_CONTEXT = "taskContext";    
     public static final String PROPERTY_SUBTASK = "subAction";

@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 class NegatableElement(object):
     def __init__(self, negated):
         self.__negated = negated

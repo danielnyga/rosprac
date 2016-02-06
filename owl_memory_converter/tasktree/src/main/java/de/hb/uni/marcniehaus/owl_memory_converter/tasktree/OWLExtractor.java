@@ -273,7 +273,11 @@ public class OWLExtractor {
     }            
     
     private boolean isDesignator(OWLIndividual individual) {
-        return getClassName(individual).equals(Constants.CLASS_NAME_DESIGNATOR);
+        return  getClassName(individual).equals(Constants.CLASS_NAME_DESIGNATOR) ||
+                getClassName(individual).equals(Constants.CLASS_NAME_ACTION_DESIGNATOR) ||
+                getClassName(individual).equals(Constants.CLASS_NAME_OBJECT_DESIGNATOR) ||
+                getClassName(individual).equals(Constants.CLASS_NAME_LOCATION_DESIGNATOR) ||
+                getClassName(individual).equals(Constants.CLASS_NAME_HUMAN_DESIGNATOR);
     }
             
     private LinkedList<String> getObjectPropertyShortNames(

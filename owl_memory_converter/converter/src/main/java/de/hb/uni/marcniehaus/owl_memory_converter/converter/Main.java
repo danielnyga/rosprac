@@ -38,9 +38,10 @@ import org.ros.node.service.ServiceClient;
 import org.ros.node.service.ServiceResponseListener;
 import org.ros.node.topic.DefaultPublisherListener;
 import org.ros.node.topic.Publisher;
-import robot_memory.LearningTriggerRequest;
-import robot_memory.LearningTriggerResponse;
-import robot_memory.RobotState;
+import task_tree_msgs.LearningTrigger;
+import task_tree_msgs.LearningTriggerRequest;
+import task_tree_msgs.LearningTriggerResponse;
+import task_tree_msgs.RobotState;
 import std_srvs.TriggerRequest;
 import std_srvs.TriggerResponse;
 
@@ -86,6 +87,7 @@ public class Main extends AbstractNodeMain
     @Override
     public void onStart(final ConnectedNode connectedNode) {
         try{
+            mNode = connectedNode;
             initCommunication(connectedNode);
             OwlConverter converter = new OwlConverter(this);
             for(Task rootTask : converter.getRootTasks(mOwlFileName)) {
@@ -128,7 +130,7 @@ public class Main extends AbstractNodeMain
         mStartTrainingTrigger = new SynchronousService<>(tmpTrigger);
         ServiceClient<LearningTriggerRequest,LearningTriggerResponse> 
                 tmpLearningTrigger = node.newServiceClient("robot_memory/learn", 
-                robot_memory.LearningTrigger._TYPE);
+                LearningTrigger._TYPE);
         mLearnTrigger = new SynchronousService<>(tmpLearningTrigger);        
         mStatePublisher = node.newPublisher(
                 "robot_memory/state", RobotState._TYPE);
@@ -159,7 +161,12 @@ public class Main extends AbstractNodeMain
         //Bad workaround, but the message queue size is limited and 
         //I cannot guarantee transport otherwise...
     }
-    
+
+    @Override
+    public void logWarning(String warning) throws Exception {
+        mNode.getLog().warn(warning);
+    }
+
     private static class SynchronousService<Request, Response>{
         
         public SynchronousService(ServiceClient<Request,Response> client) {
@@ -203,7 +210,8 @@ public class Main extends AbstractNodeMain
         private Exception mException;
         private Response mResponse;
     }
-         
+
+    private ConnectedNode mNode;
     private Publisher<RobotState> mStatePublisher;
     private SynchronousService
             <TriggerRequest, TriggerResponse> mStartTrainingTrigger;

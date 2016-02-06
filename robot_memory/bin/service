@@ -1,69 +1,7 @@
 #!/usr/bin/env python2
 
-import time
-import threading
-import traceback
-import rospy
-from robot_memory.pracmln_adapter import PracmlnAdapter
-from robot_memory import mln_creator
-from std_srvs.srv import Trigger, TriggerResponse
-from robot_memory.msg import RobotState
-from robot_memory.srv import LearningTrigger, LearningTriggerResponse
-from sys import argv
-
-
-def main():
-    service = RobotMemoryService()
-    service.run()
-
-
-class RobotMemoryService:
-    def __init__(self):
-        self.__mutex = threading.Lock()
-
-    def run(self):
-        rospy.init_node("robot_memory")
-        rospy.Service("robot_memory/start_collecting_training_data", Trigger, self.__start_collecting_training_data)
-        rospy.Service("robot_memory/learn", LearningTrigger, self.__start_learning)
-        rospy.Subscriber("robot_memory/state", RobotState, self.__robot_state_received)
-        rospy.loginfo("Entering main loop...")
-        rospy.spin()
-
-    def __robot_state_received(self, robot_state):
-        with self.__mutex:
-            self.__collected_messages.append(robot_state)
-
-    def __start_collecting_training_data(self, request):
-        with self.__mutex:
-            rospy.loginfo("Start collecting messages...")
-            self.__collected_messages = []
-        return TriggerResponse(success=True)
-
-    def __start_learning(self, request):
-        with self.__mutex:
-            rospy.loginfo("Start learning...")
-            number_of_received_messages = len(self.__collected_messages)
-        rospy.loginfo("waiting for messages to arrive...")
-        while number_of_received_messages < request.number_of_required_messages:
-            rospy.loginfo("Received %i of %i messages",
-                          number_of_received_messages, request.number_of_required_messages)
-            time.sleep(1)
-            with self.__mutex:
-                number_of_received_messages = len(self.__collected_messages)
-        with self.__mutex:
-            messages = list(self.__collected_messages)
-        rospy.loginfo("Learning...")
-        messages.sort(key=lambda m: m.sequence_number)
-        try:
-            debug = "debug" in argv
-            learner = PracmlnAdapter()
-            mln_creator.create_and_save_mlns(messages, learner, debug)
-        except Exception:
-            rospy.logfatal(traceback.format_exc())
-            return LearningTriggerResponse(success=False)
-        rospy.loginfo("Learning finished!")
-        return LearningTriggerResponse(success=True)
+from robot_memory.ros_interface import start_ros_service
 
 
 if __name__ == "__main__":
-    main()
+    start_ros_service()

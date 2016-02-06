@@ -1,7 +1,7 @@
-import database_creator
-import robot_state_preprocessor
-from robot_memory_constants import Types, Predicates
-from mln_elements import *
+from robot_memory import database_creator
+from robot_memory import robot_state_preprocessor
+from robot_memory.robot_memory_constants import Types, Predicates
+from robot_memory.mln_elements import *
 from functools import partial
 from itertools import groupby
 import time

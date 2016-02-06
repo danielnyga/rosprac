@@ -28,9 +28,13 @@ dependencies {
   /* Example of a local subproject dependency */ 
   /* compile project(':sibling_gradle_project') */
   compile 'net.sourceforge.owlapi:owlapi-distribution:4.0.2'
-  compile 'org.mongodb:mongodb-driver:3.0.2'
+  compile 'org.mongodb:mongodb-driver:3.2.1'
   compile 'com.fasterxml.jackson.core:jackson-annotations:2.3.3'
   compile 'com.fasterxml.jackson.core:jackson-databind:2.3.3'
   compile 'com.fasterxml.jackson.core:jackson-core:2.3.3'
+  compile 'javax.json:javax.json-api:1.0'
+  compile 'org.glassfish:javax.json:1.0.4'
+  compile 'net.java.dev.jna:jna:4.2.1'
+  compile 'net.java.dev.jna:jna-platform:4.2.1'
 }
 

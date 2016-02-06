@@ -1,6 +1,6 @@
 from pracmln.mln.base import parse_mln
-from pracmln.mln.methods import LearningMethods, InferenceMethods
-from pracmln.mln.database import Database, parse_db
+from pracmln.mln.methods import LearningMethods
+from pracmln.mln.database import parse_db
 from StringIO import StringIO
 
 LOGIC = "FirstOrderLogic"

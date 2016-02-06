@@ -15,14 +15,9 @@ import java.util.Iterator;
  */
 public class PreAndPostOrderTaskIterator implements Iterator<Task>{
 
-    public interface IteratorCallback {
-        public boolean skip(Task t);
-    }
-    
-    public PreAndPostOrderTaskIterator(Task root, IteratorCallback skip) {
+    public PreAndPostOrderTaskIterator(Task root) {
         mNextTask = root;
         mNextTaskFinished = false;
-        mCallback = skip;
     }
         
     @Override
@@ -34,31 +29,29 @@ public class PreAndPostOrderTaskIterator implements Iterator<Task>{
     public Task next() {
         mCurrentTask = mNextTask;
         mCurrentTaskFinished = mNextTaskFinished;
-        do {
-            if(mNextTaskFinished) {
-                if(mNextTask.getParentTask()==null) {
-                    mNextTask = null;
-                    return mNextTask;
-                } 
-                ArrayList<Task> siblingTasks =  
-                    mNextTask.getParentTask().getSubTasks();
-                int index = siblingTasks.indexOf(mNextTask);
-                if(index==siblingTasks.size()-1) {
-                    mNextTask = mNextTask.getParentTask();
-                    mNextTaskFinished = true;
-                } else {
-                    mNextTask = siblingTasks.get(index+1);
-                    mNextTaskFinished = false;
-                }
-            } else {
-                if(mNextTask.getSubTasks().isEmpty()) {
-                    mNextTaskFinished = true;
-                } else {
-                    mNextTask = mNextTask.getSubTasks().get(0);
-                    mNextTaskFinished = false;
-                }
+        if(mNextTaskFinished) {
+            if(mNextTask.getParentTask()==null) {
+                mNextTask = null;
+                return mNextTask;
             }
-        } while(mNextTask!=null && mCallback.skip(mNextTask));
+            ArrayList<Task> siblingTasks =
+                mNextTask.getParentTask().getSubTasks();
+            int index = siblingTasks.indexOf(mNextTask);
+            if(index==siblingTasks.size()-1) {
+                mNextTask = mNextTask.getParentTask();
+                mNextTaskFinished = true;
+            } else {
+                mNextTask = siblingTasks.get(index+1);
+                mNextTaskFinished = false;
+            }
+        } else {
+            if(mNextTask.getSubTasks().isEmpty()) {
+                mNextTaskFinished = true;
+            } else {
+                mNextTask = mNextTask.getSubTasks().get(0);
+                mNextTaskFinished = false;
+            }
+        }
         return mCurrentTask;
     }
 
@@ -79,5 +72,4 @@ public class PreAndPostOrderTaskIterator implements Iterator<Task>{
     private boolean mCurrentTaskFinished;
     private Task mNextTask;
     private boolean mNextTaskFinished;
-    private final IteratorCallback mCallback;
 }

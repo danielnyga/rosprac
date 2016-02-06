@@ -1,5 +1,4 @@
 from genpy.rostime import Duration
-from robot_memory.msg import RobotState
 
 
 class AbstractDuration(object):

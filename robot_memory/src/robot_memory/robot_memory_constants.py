@@ -1,4 +1,4 @@
-from mln_elements import Type, Predicate
+from robot_memory.mln_elements import Type, Predicate
 
 
 class Types(object):

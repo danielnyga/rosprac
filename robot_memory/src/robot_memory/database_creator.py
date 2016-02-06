@@ -1,5 +1,5 @@
-from mln_elements import DatabaseCollection, Database
-from robot_memory_constants import Predicates
+from robot_memory.mln_elements import DatabaseCollection, Database
+from robot_memory.robot_memory_constants import Predicates
 import re
 
 

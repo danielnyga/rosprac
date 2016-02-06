@@ -1,9 +1,0 @@
-uint32 sequence_number
-string task_id
-string task_name
-bool finished
-string error
-time current_time
-Tuple[] parameters
-Object[] perceived_objects
-Object[] used_objects

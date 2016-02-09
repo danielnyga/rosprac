@@ -47,6 +47,9 @@ class TaskTreeNode(object):
     def add_child_task(self, child_task):
         self.child_tasks.append(child_task)
 
+    def remove_child_task(self, child_task):
+        self.child_tasks.remove(child_task)
+
     @property
     def parent_task(self):
         return self.__parent_task
@@ -91,7 +94,10 @@ class TaskTreeGoalNode(TaskTreeNode):
         return self.__goal_properties
 
     def add_goal_property(self, key, value):
-        self.__goal_properties.append((key, value))
+        self.__goal_properties.append([key, value])
+
+    def replace_goal_property_value(self, old_pair, new_value):
+        old_pair[1]=new_value
 
     def __str__(self):
         return TaskTreeNode.__str__(self) + " pattern=" + self.__goal_pattern + " " + \
@@ -129,7 +135,10 @@ class Designator:
         # keys = [p[0] for p in self.properties]
         # if key in keys:
         #     raise Exception("Key " + key + " is used for more than one property!")
-        self.__properties.append((key, value))
+        self.__properties.append([key, value])
+
+    def replace_property_value(self, old_pair, new_value):
+        old_pair[1] = new_value
 
     @property
     def designators(self):

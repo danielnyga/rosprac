@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 class NegatableElement(object):
     def __init__(self, negated):
         self.__negated = negated
@@ -68,7 +70,7 @@ class Predicate(object):
         if kwargs:
             raise Exception("keyword arguments are not supported!")
         if len(args) != len(self.__types):
-            raise Exception("Invalid number of arguments: " + str(len(self.__types)) + "required!")
+            raise Exception("Invalid number of arguments: " + str(len(self.__types)) + " required!")
         for arg in args:
             if str(arg) == "":
                 raise Exception(
@@ -100,17 +102,23 @@ class Predicate(object):
 
 
 class Type(object):
-    def __init__(self, type_name, is_soft_functional=False):
+    def __init__(self, type_name):
         self.__type_name = type_name
-        self.__is_soft_functional = is_soft_functional
-        if not is_soft_functional:
-            self.__soft_functional_type = Type(type_name, True)
+        self.__is_soft_functional = False
+        self.__is_functional = False
 
     def __neg__(self):
-        return self.__soft_functional_type
+        to_return = Type(self.__type_name)
+        to_return.__is_soft_functional = True
+        return to_return
+
+    def __pos__(self):
+        to_return = Type(self.__type_name)
+        to_return.__is_functional = True
+        return to_return
 
     def __str__(self):
-        return self.__type_name + ("?" if self.__is_soft_functional else "")
+        return self.__type_name + ("?" if self.__is_soft_functional else "!" if self.__is_functional else "")
 
     def __repr__(self):
         return self.__str__()
@@ -249,7 +257,7 @@ class LogicalConnective(NegatableElement):
         return tuple(self._elements).__hash__()
 
     def __eq__(self, other):
-        return (self.__class__.__name__ == other.__class__.__name__) + (self._elements == other._elements)
+        return (self.__class__.__name__ == other.__class__.__name__) and (self._elements == other._elements)
 
     def __ne__(self, other):
         return not self.__eq__(other)

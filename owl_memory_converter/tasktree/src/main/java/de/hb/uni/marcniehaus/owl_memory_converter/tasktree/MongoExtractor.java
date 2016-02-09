@@ -175,31 +175,57 @@ public class MongoExtractor {
 
         @Override
         public void connect(String databaseName, String collectionName)  throws Exception{
-            mNativeLibrary.mongoc_init();
-            mClient = mNativeLibrary.mongoc_client_new("mongodb://localhost:27017/");
-            checkForError(mClient);
-            mCollection = mNativeLibrary.mongoc_client_get_collection(mClient, databaseName, collectionName);
-            checkForError(mCollection);
+            try {
+                mNativeLibrary.mongoc_init();
+                mClient = mNativeLibrary.mongoc_client_new("mongodb://localhost:27017/");
+                checkForError(mClient);
+                mCollection = mNativeLibrary.mongoc_client_get_collection(mClient, databaseName, collectionName);
+                checkForError(mCollection);
+            } catch (Throwable t) {
+                if(mCollection!=null) {
+                    mNativeLibrary.mongoc_collection_destroy(mCollection);
+                    mCollection = null;
+                }
+                if(mClient!=null) {
+                    mNativeLibrary.mongoc_client_destroy(mClient);
+                    mClient = null;
+                }
+                mNativeLibrary.mongoc_cleanup();
+            }
         }
 
         @Override
         public LinkedList<String> find(String key, String value)  throws Exception{
             LinkedList<String> toReturn = new LinkedList<>();
-            Pointer query = mNativeLibrary.bson_new();
-            checkForError(query);
-            checkForError(mNativeLibrary.bson_append_utf8(query, key, key.length(), value, value.length()));
-            Pointer cursor = mNativeLibrary.mongoc_collection_find(mCollection, 0, 0, 0, 0, query, null, null);
-            checkForError(cursor);
-            PointerByReference docReference = new PointerByReference();
-            while(mNativeLibrary.mongoc_cursor_next(cursor, docReference)) {
-                Pointer str = mNativeLibrary.bson_as_json(docReference.getValue(), null);
-                checkForError(str);
-                String s = str.getString(0);
-                toReturn.add(new String(s));
-                mNativeLibrary.bson_free(str);
+            Pointer query = null;
+            Pointer cursor = null;
+            Pointer str = null;
+            try {
+                query = mNativeLibrary.bson_new();
+                checkForError(query);
+                checkForError(mNativeLibrary.bson_append_utf8(query, key, key.length(), value, value.length()));
+                cursor = mNativeLibrary.mongoc_collection_find(mCollection, 0, 0, 0, 0, query, null, null);
+                checkForError(cursor);
+                PointerByReference docReference = new PointerByReference();
+                while (mNativeLibrary.mongoc_cursor_next(cursor, docReference)) {
+                    str = mNativeLibrary.bson_as_json(docReference.getValue(), null);
+                    checkForError(str);
+                    String s = str.getString(0);
+                    toReturn.add(new String(s));
+                    mNativeLibrary.bson_free(str);
+                    str=null;
+                }
+            } finally {
+                if(query!=null) {
+                    mNativeLibrary.bson_destroy(query);
+                }
+                if(cursor!=null) {
+                    mNativeLibrary.mongoc_cursor_destroy(cursor);
+                }
+                if(str!=null) {
+                    mNativeLibrary.bson_free(str);
+                }
             }
-            mNativeLibrary.bson_destroy(query);
-            mNativeLibrary.mongoc_cursor_destroy(cursor);
             return toReturn;
         }
 
@@ -247,8 +273,6 @@ public class MongoExtractor {
             }
             return toReturn;
         }
-
-
 
         private MongoCollection<Document> mDesignatorCollection = null;
     }

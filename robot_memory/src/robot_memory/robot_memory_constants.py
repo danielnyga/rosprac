@@ -2,37 +2,29 @@ from robot_memory.mln_elements import Type, Predicate
 
 
 class Types(object):
-    TIME_STEP = Type("timeStep")
-    TASK_TYPE = Type("taskType")
-    ERROR = Type("error")
-    GOAL = Type("goal")
-    OBJECT = Type("object")
+    DESIGNATOR_OR_VALUE = Type("designatorOrValue")
+    DESIGNATOR_TYPE = Type("designatorType")
+    TASK = Type("task")
+    TASK_NAME = Type("taskName")
+    GOAL_PATTERN = Type("goalPattern")
+    GOAL_PROPERTY_VALUE = Type("goalPropertyValue")
+    DESIGNATOR_PROPERTY_VALUE = Type("value")
     PROPERTY_KEY = Type("propertyKey")
-    PROPERTY_VALUE = Type("propertyValue")
-    OBJECT_PROPERTY_KEY = Type("objectPropertyKey")
-    OBJECT_PROPERTY_VALUE = Type("objectPropertyValue")
-    OBJECT_TYPE = Type("objectType")
-    OBJECT_LOCATION = Type("location")
-    DURATION = Type("duration")
+    SUB_DESIGNATOR_KEY = Type("subDesignatorKey")
+    GOAL_KEY = Type("goalKey")
 
 
 class Predicates(object):
-    CURRENT_TASK = Predicate("currentTask", Types.TIME_STEP, -Types.TASK_TYPE)
-    CURRENT_TASK_FINISHED = Predicate("currentTaskFinished", Types.TIME_STEP)
-    CURRENT_PARENT_TASK = Predicate("currentParentTask", Types.TIME_STEP, -Types.TASK_TYPE)
-    NEXT_TASK = Predicate("nextTask", Types.TIME_STEP, -Types.TASK_TYPE)
-    NEXT_TASK_FINISHED = Predicate("nextTaskFinished", Types.TIME_STEP)
-    CHILD_TASK = Predicate("childTask", Types.TIME_STEP, Types.TASK_TYPE)
-    ERROR = Predicate("error", Types.TIME_STEP, -Types.ERROR)
-    CURRENT_PARAMETER = Predicate("currentParameter", Types.TIME_STEP, Types.PROPERTY_KEY, -Types.PROPERTY_VALUE)
-    PARENT_PARAMETER = Predicate("parentParameter", Types.TIME_STEP, Types.PROPERTY_KEY, -Types.PROPERTY_VALUE)
-    NEXT_PARAMETER = Predicate("nextParameter", Types.TIME_STEP, Types.PROPERTY_KEY, -Types.PROPERTY_VALUE)
-    PERCEIVED_OBJECT = Predicate("perceivedObject", Types.TIME_STEP, Types.OBJECT)
-    USED_OBJECT = Predicate("usedObject", Types.TIME_STEP, Types.OBJECT)
-    OBJECT_PROPERTY = Predicate("objectProperty", Types.OBJECT, Types.OBJECT_PROPERTY_KEY, -Types.OBJECT_PROPERTY_VALUE)
-    OBJECT_TYPE = Predicate("objectType", Types.OBJECT, -Types.OBJECT_TYPE)
-    OBJECT_LOCATION = Predicate("objectLocation", Types.TIME_STEP, Types.OBJECT, -Types.OBJECT_LOCATION)
-    DURATION = Predicate("duration", Types.TIME_STEP, -Types.DURATION)
+    TASK_NAME = Predicate("name", Types.TASK, +Types.TASK_NAME)
+    TASK_SUCCESS = Predicate("success", Types.TASK)
+    GOAL_PATTERN = Predicate("goalPattern", Types.TASK, -Types.GOAL_PATTERN)
+    DESIGNATOR_OR_VALUE = Predicate("designatorOrValue", Types.TASK, Types.GOAL_KEY, -Types.DESIGNATOR_OR_VALUE)
+    DESIGNATOR = Predicate("designator", Types.DESIGNATOR_OR_VALUE, -Types.DESIGNATOR_TYPE)
+    GOAL_PROPERTY_VALUE = Predicate("goalPropertyValue", Types.DESIGNATOR_OR_VALUE, -Types.GOAL_PROPERTY_VALUE)
+    DESIGNATOR_PROPERTY = \
+        Predicate("designatorProperty", Types.DESIGNATOR_OR_VALUE, Types.PROPERTY_KEY, -Types.DESIGNATOR_PROPERTY_VALUE)
+    SUB_DESIGNATOR = \
+        Predicate("subDesignator", Types.DESIGNATOR_OR_VALUE, Types.SUB_DESIGNATOR_KEY, -Types.DESIGNATOR_OR_VALUE)
 
     @staticmethod
     def get_all_predicates():

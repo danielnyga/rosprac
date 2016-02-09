@@ -55,11 +55,9 @@ class RobotMemoryService(object):
         try:
             debug = "debug" in argv
             root_nodes = _create_task_trees(messages)
-            if debug:
-                for node in root_nodes:
-                    rospy.loginfo(node.tree_as_string())
-            learner = PracmlnAdapter()
-#TODO            mln_creator.create_and_save_mlns(root_nodes, learner, debug)
+#            learner = PracmlnAdapter()
+            learner = None
+            mln_creator.create_and_save_mlns(root_nodes, learner, debug, rospy)
         except Exception:
             rospy.logfatal(traceback.format_exc())
             return LearningTriggerResponse(success=False)

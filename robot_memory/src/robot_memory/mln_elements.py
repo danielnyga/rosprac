@@ -50,15 +50,15 @@ class GroundAtom(NegatableElement):
     def type_value_pairs(self):
         return self._constants
 
-    def set_argument_value(self, argument_type, value):
-        for pair in self._constants:
-            if pair[0] == argument_type:
-                pair[1] = value
+    def set_argument_value(self, argument_type, argument_type_index, value):
+        arguments = [pair for pair in self._constants if pair[0] == argument_type]
+        arguments[argument_type_index][1] = value
 
-    def get_argument_value(self, argument_type):
-        for pair in self._constants:
-            if pair[0] == argument_type:
-                return pair[1]
+    def get_argument_values(self, argument_type):
+        return [pair[1] for pair in self._constants if pair[0] == argument_type]
+
+    def get_argument_value(self, value_index):
+        return self._constants[value_index][1]
 
 
 class Predicate(object):
@@ -336,10 +336,10 @@ class EqualityComparison(NegatableElement):
 
 
 class ClosedWorldGroundAtoms(object):
-    def __init__(self, predicate, fixed_variables, exceptions, variable_prefix):
+    def __init__(self, predicate, fixed_index_value_pairs, existing_indices_and_values, variable_prefix):
         self.__predicate = predicate
-        self.__fixed_type_variable_pairs = fixed_variables
-        self.__exceptions = exceptions
+        self.__fixed_index_value_pairs = fixed_index_value_pairs
+        self.__existing_indices_and_values = existing_indices_and_values
         self.__variable_prefix = variable_prefix
         self.__realization = None
         self.calculate_realization()
@@ -348,28 +348,24 @@ class ClosedWorldGroundAtoms(object):
         variable_suffix = 0
         quantified_variables = []
         variables = []
-        type_to_quantified_variables = {}
-        for variable_type in self.__predicate.types:
-            variable_is_fixed = reduce(lambda rest, f: rest or variable_type == f[0],
-                                       self.fixed_type_variable_pairs, False)
+        index_to_quantified_variable = {}
+        for variable_index in range(0, len(self.__predicate.types)):
+            variable_is_fixed = variable_index in zip(*self.__fixed_index_value_pairs)[0]
             if variable_is_fixed:
-                variables.append(reduce(lambda rest, f: f[1] if variable_type == f[0] else rest,
-                                        self.fixed_type_variable_pairs, None))
+                variables.append(filter(lambda x: x[0] == variable_index, self.__fixed_index_value_pairs)[0][1])
             else:
                 variable = str(self.__variable_prefix) + str(variable_suffix)
                 variable_suffix += 1
-                type_to_quantified_variables[variable_type] = variable
+                index_to_quantified_variable[variable_index] = variable
                 variables.append(variable)
                 quantified_variables.append(variable)
         negated_predicate = self.__predicate(*variables)
         conjunction_elements = [negated_predicate]
-        for exceptions_for_one_atom in self.__exceptions:
+        for exceptions_for_one_atom in self.__existing_indices_and_values:
             sub_conjunction_elements = []
-            for exception in exceptions_for_one_atom:
-                variable_type = exception[0]
-                allowed_value = exception[1]
-                variable = type_to_quantified_variables[variable_type]
-                sub_conjunction_elements.append(EqualityComparison(variable, allowed_value))
+            for index, value in exceptions_for_one_atom:
+                variable = index_to_quantified_variable[index]
+                sub_conjunction_elements.append(EqualityComparison(variable, value))
             conjunction_elements.append(Conjunction(sub_conjunction_elements, True))
         new_logic_formula = Conjunction(conjunction_elements)
         self.__realization = ExistentialQuantifier(quantified_variables, new_logic_formula, True)
@@ -392,15 +388,6 @@ class ClosedWorldGroundAtoms(object):
     @property
     def predicate(self):
         return self.__predicate
-
-    @property
-    def fixed_type_variable_pairs(self):
-        return self.__fixed_type_variable_pairs
-
-    @fixed_type_variable_pairs.setter
-    def fixed_type_variable_pairs(self, value):
-        self.__fixed_type_variable_pairs = value
-        self.calculate_realization()
 
 
 class MLN(object):

@@ -42,16 +42,11 @@ def _create_designator_mln(databases):
     for formula in formulas:
         if not [gnd_atom for gnd_atom in formula.logical_formula if gnd_atom.predicate == Predicates.TASK_SUCCESS]:
             formula.logical_formula.add_element(~Predicates.TASK_SUCCESS("?t0"))
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, [(Types.TASK, "?t0")], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_OR_VALUE,[(Types.TASK, "?t0")], "?p")
-    formulas = _add_negation_for_all_but_existing(
-        formulas, Predicates.DESIGNATOR,[(Types.DESIGNATOR_OR_VALUE, "?d0")], "?p")
-    formulas = _add_negation_for_all_but_existing(
-        formulas, Predicates.GOAL_PROPERTY_VALUE,[(Types.DESIGNATOR_OR_VALUE, "?d0")], "?p")
-    formulas = _add_negation_for_all_but_existing(
-        formulas, Predicates.DESIGNATOR_PROPERTY,[(Types.DESIGNATOR_OR_VALUE, "?d0")], "?p")
-    formulas = _add_negation_for_all_but_existing(
-        formulas, Predicates.SUB_DESIGNATOR,[(Types.DESIGNATOR_OR_VALUE, "?d0")], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, [0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_OR_VALUE, [0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY_VALUE,[0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY,[0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR,[0], "?p")
     mln.append_formulas(formulas)
     return mln
 
@@ -107,29 +102,29 @@ def _apply_replacements(formulas, formula_replacements):
             for replacement in formula_replacements:
                 constant_type = replacement[0]
                 if constant_type in ground_atom.predicate.types:
-                    current_value = ground_atom.get_argument_value(constant_type)
-                    if current_value in replacements:
-                        ground_atom.set_argument_value(constant_type, replacements[current_value])
-                    else:
-                        new_value = new_value = replacement[1] + str(suffix)
-                        replacements[current_value] = new_value
-                        suffix += 1
-                        ground_atom.set_argument_value(constant_type, new_value)
+                    for index, current_value in enumerate(ground_atom.get_argument_values(constant_type)):
+                        if current_value in replacements:
+                            ground_atom.set_argument_value(constant_type, index, replacements[current_value])
+                        else:
+                            new_value = replacement[1] + str(suffix)
+                            replacements[current_value] = new_value
+                            suffix += 1
+                            ground_atom.set_argument_value(constant_type, index, new_value)
     return formulas
 
 
-def _add_negation_for_all_but_existing(formulas, predicate, fixed_types_with_value, prefix):
+def _add_negation_for_all_but_existing(formulas, predicate, fixed_indices, prefix):
     for formula in formulas: #TODO: Make it work on nested elements...
         has_desired_predicate = lambda gnd_atom: hasattr(gnd_atom, "predicate") and gnd_atom.predicate == predicate
         existing_atoms = filter(has_desired_predicate, formula.logical_formula)
-        types_to_be_fixed = filter(lambda t: t not in [f[0] for f in fixed_types_with_value], predicate.types)
-        exceptions = []
-        for existing_atom in existing_atoms:
-            gnd_atom_exception = []
-            for fixed_type in types_to_be_fixed:
-                value = existing_atom.get_argument_value(fixed_type)
-                gnd_atom_exception.append((fixed_type, value))
-            exceptions.append(gnd_atom_exception)
-        formula.logical_formula.add_element(
-            ClosedWorldGroundAtoms(predicate, fixed_types_with_value, exceptions, prefix))
+        fixed_variables_to_list_of_exceptions = {}
+        for ground_atom in existing_atoms:
+            fixed_variables = tuple([(index, ground_atom.get_argument_value(index)) for index in fixed_indices])
+            if not fixed_variables in fixed_variables_to_list_of_exceptions:
+                fixed_variables_to_list_of_exceptions[fixed_variables]=set()
+            exceptions = [(index, ground_atom.get_argument_value(index)) for index
+                           in range(0, len(ground_atom.predicate.types)) if index not in fixed_indices]
+            fixed_variables_to_list_of_exceptions[fixed_variables].add(tuple(exceptions))
+        for fixed_variables, exceptions in fixed_variables_to_list_of_exceptions.items():
+            formula.logical_formula.add_element(ClosedWorldGroundAtoms(predicate, fixed_variables, exceptions, prefix))
     return formulas

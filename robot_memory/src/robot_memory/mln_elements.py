@@ -271,14 +271,26 @@ class LogicalConnective(NegatableElement):
 
 
 class Conjunction(LogicalConnective):
+    def __init__(self, elements, negated=False, show_brackets=False):
+        LogicalConnective.__init__(self, elements, negated)
+        self.show_brackets = show_brackets or negated
+
+    def __str__(self):
+        elements_in_conjunction = str(reduce(lambda g1, g2: str(g1) + " ^ " + str(g2), self._elements))
+        prefix = "!" if self.negated else "" + "(" if self.show_brackets else ""
+        suffix = ")" if self.show_brackets else ""
+        return prefix + elements_in_conjunction + suffix
+
+
+class Disjunction(LogicalConnective):
     def __init__(self, elements, negated=False):
         LogicalConnective.__init__(self, elements, negated)
 
     def __str__(self):
-        elements_in_conjunction = str(reduce(lambda g1, g2: str(g1) + " ^ " + str(g2), self._elements))
-        negation_start = "!(" if self.negated else ""
-        negation_end = ")" if self.negated else ""
-        return negation_start + elements_in_conjunction + negation_end
+        elements_in_disjunction = str(reduce(lambda g1, g2: str(g1) + " v " + str(g2), self._elements))
+        prefix = "!" if self.negated else "" + "("
+        suffix = ")"
+        return prefix + elements_in_disjunction + suffix
 
 
 class ExistentialQuantifier(NegatableElement):
@@ -365,8 +377,8 @@ class ClosedWorldGroundAtoms(object):
             sub_conjunction_elements = []
             for index, value in exceptions_for_one_atom:
                 variable = index_to_quantified_variable[index]
-                sub_conjunction_elements.append(EqualityComparison(variable, value))
-            conjunction_elements.append(Conjunction(sub_conjunction_elements, True))
+                sub_conjunction_elements.append(EqualityComparison(variable, value, True))
+            conjunction_elements.append(Disjunction(sub_conjunction_elements, False))
         new_logic_formula = Conjunction(conjunction_elements)
         self.__realization = ExistentialQuantifier(quantified_variables, new_logic_formula, True)
 

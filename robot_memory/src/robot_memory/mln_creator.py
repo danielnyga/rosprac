@@ -36,24 +36,28 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
 def _create_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.DESIGNATOR)
     necessary_predicates = [Predicates.TASK_NAME]
-    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.GOAL_PATTERN, Predicates.DESIGNATOR_OR_VALUE,
-                           Predicates.GOAL_PROPERTY_VALUE, Predicates.GOAL_PROPERTY_DESIGNATOR,
+    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.GOAL_PATTERN,
+                           Predicates.GOAL_PROPERTY, Predicates.GOAL_DESIGNATOR,
                            Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE, Predicates.DESIGNATOR_HASH,
                            Predicates.SUB_DESIGNATOR, Predicates.TASK_NAME]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
     formulas = _split_objects_of_different_type(formulas, Types.DESIGNATOR)
-    formulas = _apply_replacements(formulas,
-                                   [(Types.DESIGNATOR, "?d"), (Types.DESIGNATOR_OR_VALUE, "?dv"), (Types.TASK, "?t")])
+    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR, "?d"),  (Types.TASK, "?t")])
     for formula in formulas:
         for conjunction in formula.logical_formula:
-            if not [gnd_atom for gnd_atom in conjunction if gnd_atom.predicate == Predicates.TASK_SUCCESS]:
+            if not [gnd_atom for gnd_atom in conjunction if hasattr(gnd_atom, "predicate") and
+                            gnd_atom.predicate == Predicates.TASK_SUCCESS]:
                 conjunction.add_element(~Predicates.TASK_SUCCESS("?t0"))
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, [0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_OR_VALUE, [0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY_VALUE, [0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY_DESIGNATOR, [0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY, [0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR, [0], "?p")
+    formulas = _add_negation_for_all_but_existing(
+        formulas, Predicates.DESIGNATOR_HASH, 0, "?p", lambda f: not _domain_declaration_in_formula(f))
+    formulas = _add_negation_for_all_but_existing(
+        formulas, Predicates.DESIGNATOR_TYPE, 0, "?p", lambda f: not _domain_declaration_in_formula(f))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_DESIGNATOR, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR, 0, "?p")
+    formulas = _remove_domain_declarations(formulas)
     mln.append_formulas(formulas)
     return mln
 
@@ -91,9 +95,12 @@ def _create_mln_skeleton(mln_name):
 
 
 def _get_formula_templates_from_databases(databases, possible_preds, necessary_preds):
-    predicate_contained_in_formula = lambda gnd_atom: gnd_atom.predicate in possible_preds
-    formula_atoms = [filter(predicate_contained_in_formula, [FormulaGroundAtom(ga) for ga in db]) for db in databases]
-    predicate_is_in_list = lambda gnd_atoms, pred: pred in [g.predicate for g in gnd_atoms]
+    predicate_contained_in_formula = lambda gnd_atom: not hasattr(gnd_atom, "predicate") or \
+                                                      gnd_atom.predicate in possible_preds
+    formula_atoms = [filter(predicate_contained_in_formula,
+                            [FormulaGroundAtom(ga) if isinstance(ga, FormulaGroundAtom) else ga for ga in db])
+                     for db in databases]
+    predicate_is_in_list = lambda gnd_atoms, pred: pred in [g.predicate for g in gnd_atoms if hasattr(g, "predicate")]
     atoms_contain_necessary_elements = lambda atoms: \
         reduce(lambda a, b: a and b, [predicate_is_in_list(atoms, pred) for pred in necessary_preds])
     formula_atoms = filter(atoms_contain_necessary_elements, formula_atoms)
@@ -113,7 +120,7 @@ def _apply_replacements(formulas, formula_replacements):
             else:
                 for replacement in formula_replacements:
                     constant_type = replacement[0]
-                    if constant_type in element.predicate.types:
+                    if element.get_argument_values(constant_type):
                         for index, current_value in enumerate(element.get_argument_values(constant_type)):
                             if current_value in replacements:
                                 element.set_argument_value(constant_type, index, replacements[current_value])
@@ -132,35 +139,74 @@ def _split_objects_of_different_type(formulas, type_to_split):
     to_return = []
     for formula in formulas:
         for conjunction in formula.logical_formula:
-            atoms_with_type = filter(lambda atom: type_to_split in atom.predicate.types, conjunction)
-            atoms_without_type = filter(lambda atom: type_to_split not in atom.predicate.types, conjunction)
+            atoms_with_type = filter(lambda atom: atom.get_argument_values(type_to_split), conjunction)
+            atoms_without_type = filter(lambda atom: not atom.get_argument_values(type_to_split), conjunction)
             if not atoms_with_type:
                 to_return.append(formula)
                 continue
             atoms_with_type.sort(key=lambda atom: atom.get_argument_values(type_to_split)[0])
             for _, group in groupby(atoms_with_type, key=lambda atom: atom.get_argument_values(type_to_split)[0]):
                 to_return.append(Formula(formula.weight, Conjunction([Conjunction(
-                    [FormulaGroundAtom(gnd_atom) for gnd_atom in atoms_without_type + list(group)], False, True)])))
+                    [FormulaGroundAtom(gnd_atom) if isinstance(gnd_atom, GroundAtom) else gnd_atom
+                     for gnd_atom in atoms_without_type + list(group)], False, True)])))
     return to_return
 
 
-def _add_negation_for_all_but_existing(formulas, predicate, fixed_indices, prefix):
+def _add_negation_for_all_but_existing(formulas, predicate, fixed_index, prefix, skip=lambda formula: False):
     for formula in formulas: #TODO: Make it work on nested elements...
+        if skip(formula):
+            continue
         for conjunction in list(formula.logical_formula):
             if not isinstance(conjunction, Conjunction):
                 continue
-            has_desired_predicate = lambda gnd_atom: hasattr(gnd_atom, "predicate") and gnd_atom.predicate == predicate
-            existing_atoms = filter(has_desired_predicate, conjunction)
+            fixed_type = predicate.types[fixed_index]
             fixed_variables_to_list_of_exceptions = {}
-            for ground_atom in existing_atoms:
-                fixed_variables = tuple([(index, ground_atom.get_argument_value(index)) for index in fixed_indices])
-                if not fixed_variables in fixed_variables_to_list_of_exceptions:
-                    fixed_variables_to_list_of_exceptions[fixed_variables]=set()
-                exceptions = [(index, ground_atom.get_argument_value(index)) for index
-                               in range(0, len(ground_atom.predicate.types)) if index not in fixed_indices]
-                fixed_variables_to_list_of_exceptions[fixed_variables].add(tuple(exceptions))
+            for ground_atom in conjunction:
+                if hasattr(ground_atom, "predicate") and ground_atom.predicate == predicate:
+                    fixed_variables = tuple([(fixed_index, ground_atom.get_argument_value(fixed_index))])
+                    if not fixed_variables in fixed_variables_to_list_of_exceptions:
+                        fixed_variables_to_list_of_exceptions[fixed_variables]=set()
+                    exceptions = [(index, ground_atom.get_argument_value(index)) for index
+                                  in range(0, len(ground_atom.predicate.types)) if index != fixed_index]
+                    fixed_variables_to_list_of_exceptions[fixed_variables].add(tuple(exceptions))
+                elif hasattr(ground_atom, "get_argument_values"):
+                    for argument_value in ground_atom.get_argument_values(fixed_type):
+                        fixed_variables = tuple([(fixed_index, argument_value)])
+                        if fixed_variables not in fixed_variables_to_list_of_exceptions:
+                            fixed_variables_to_list_of_exceptions[fixed_variables] = set()
             for fixed_variables, exceptions in fixed_variables_to_list_of_exceptions.items():
                 formula.logical_formula.add_element(
                     ClosedWorldGroundAtoms(predicate, fixed_variables, exceptions, prefix))
     return formulas
 
+
+def _remove_domain_declarations(formulas):
+    def remove_domain_declarations_recursively(sub_formula):
+        if not hasattr(sub_formula, "__iter__"):
+            return
+        for child in sub_formula:
+            if isinstance(child, DomainDeclaration):
+                sub_formula.remove_element(child)
+            else:
+                remove_domain_declarations_recursively(child)
+
+    for formula in formulas:
+        for sub_formula in formula.logical_formula:
+            remove_domain_declarations_recursively(sub_formula)
+
+    return formulas
+
+
+def _domain_declaration_in_formula(formula):
+    if hasattr(formula, "logical_formula"):
+        formula = formula.logical_formula
+    if not hasattr(formula, "__iter__"):
+        return False
+    for child in formula:
+        if isinstance(child, DomainDeclaration):
+            return True
+        elif _domain_declaration_in_formula(child):
+            return True
+    return False
+
+#TODO: Move all trhee *recursively* functions into one...

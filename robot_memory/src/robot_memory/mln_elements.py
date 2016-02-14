@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 class NegatableElement(object):
     def __init__(self, negated):
         self.__negated = negated
@@ -59,6 +57,29 @@ class GroundAtom(NegatableElement):
 
     def get_argument_value(self, value_index):
         return self._constants[value_index][1]
+
+
+class DomainDeclaration(object):
+    def __init__(self, domain_type, *possible_values):
+        self.__domain_type = domain_type
+        self.__possible_values = list(possible_values)
+
+    def get_argument_values(self, argument_type):
+        return self.__possible_values if argument_type == self.__domain_type else []
+
+    def set_argument_value(self, _, argument_type_index, value):
+        self.__possible_values[argument_type_index] = value
+
+    def __hash__(self):
+        return hash(tuple([self.__domain_type, tuple(self.__possible_values)]))
+
+    def __eq__(self, other):
+        return self.__domain_type == other.__domain_type and \
+        tuple(self.__possible_values) == tuple(other.__possible_values)
+
+    def __str__(self):
+        return str(self.__domain_type) + "={" + ("" if not self.__possible_values else \
+            str(reduce(lambda x,y: str(x)+","+str(y), self.__possible_values))) + "}"
 
 
 class Predicate(object):
@@ -168,7 +189,7 @@ class Database(object):
 
     def __str__(self):
         sorted_atoms = list(self.__ground_atoms)
-        sorted_atoms.sort(key=lambda a: a.predicate.name)
+        sorted_atoms.sort(key=lambda a: a.predicate.name if hasattr(a, "predicate") else str(a))
         return str(reduce(lambda g1, g2: str(g1) + "\n" + str(g2), sorted_atoms))
 
     def __repr__(self):

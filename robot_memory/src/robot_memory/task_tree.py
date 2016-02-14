@@ -1,3 +1,5 @@
+import hashlib
+
 class TaskTreeNode(object):
     def __init__(self, task_id, name, success, duration):
         self.__id = task_id
@@ -157,6 +159,12 @@ class Designator:
     def tree_as_string(self, indentation_level):
         return _reduce_string(lambda s1, s2: s1+"\n"+s2, [self.__str__()]+[_indentation_string()*(indentation_level+1) +
             k + ": " + d.tree_as_string(indentation_level+1) for k, d in self.designators])
+
+    @property
+    def sha1_hash(self):
+        string_representation = self.designator_type + \
+                                str(self.__properties) + str([(k, v.sha1_hash) for k,v in self.__designators])
+        return hashlib.sha1(string_representation).hexdigest()
 
 
 def _reduce_string(function, strings):

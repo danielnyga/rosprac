@@ -1,3 +1,5 @@
+from itertools import groupby
+
 from robot_memory import database_creator
 from robot_memory import task_tree_preprocessor
 from robot_memory.robot_memory_constants import Types, Predicates
@@ -35,19 +37,23 @@ def _create_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.DESIGNATOR)
     necessary_predicates = [Predicates.TASK_NAME]
     optional_predicates = [Predicates.TASK_SUCCESS, Predicates.GOAL_PATTERN, Predicates.DESIGNATOR_OR_VALUE,
-                           Predicates.DESIGNATOR, Predicates.GOAL_PROPERTY_VALUE, Predicates.DESIGNATOR_PROPERTY,
+                           Predicates.GOAL_PROPERTY_VALUE, Predicates.GOAL_PROPERTY_DESIGNATOR,
+                           Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE, Predicates.DESIGNATOR_HASH,
                            Predicates.SUB_DESIGNATOR, Predicates.TASK_NAME]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
-    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_OR_VALUE, "?d"), (Types.TASK, "?t")])
+    formulas = _split_objects_of_different_type(formulas, Types.DESIGNATOR)
+    formulas = _apply_replacements(formulas,
+                                   [(Types.DESIGNATOR, "?d"), (Types.DESIGNATOR_OR_VALUE, "?dv"), (Types.TASK, "?t")])
     for formula in formulas:
         for conjunction in formula.logical_formula:
             if not [gnd_atom for gnd_atom in conjunction if gnd_atom.predicate == Predicates.TASK_SUCCESS]:
                 conjunction.add_element(~Predicates.TASK_SUCCESS("?t0"))
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, [0], "?p")
     formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_OR_VALUE, [0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY_VALUE,[0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY,[0], "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR,[0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY_VALUE, [0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY_DESIGNATOR, [0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY, [0], "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR, [0], "?p")
     mln.append_formulas(formulas)
     return mln
 
@@ -122,6 +128,22 @@ def _apply_replacements(formulas, formula_replacements):
     return formulas
 
 
+def _split_objects_of_different_type(formulas, type_to_split):
+    to_return = []
+    for formula in formulas:
+        for conjunction in formula.logical_formula:
+            atoms_with_type = filter(lambda atom: type_to_split in atom.predicate.types, conjunction)
+            atoms_without_type = filter(lambda atom: type_to_split not in atom.predicate.types, conjunction)
+            if not atoms_with_type:
+                to_return.append(formula)
+                continue
+            atoms_with_type.sort(key=lambda atom: atom.get_argument_values(type_to_split)[0])
+            for _, group in groupby(atoms_with_type, key=lambda atom: atom.get_argument_values(type_to_split)[0]):
+                to_return.append(Formula(formula.weight, Conjunction([Conjunction(
+                    [FormulaGroundAtom(gnd_atom) for gnd_atom in atoms_without_type + list(group)], False, True)])))
+    return to_return
+
+
 def _add_negation_for_all_but_existing(formulas, predicate, fixed_indices, prefix):
     for formula in formulas: #TODO: Make it work on nested elements...
         for conjunction in list(formula.logical_formula):
@@ -141,3 +163,4 @@ def _add_negation_for_all_but_existing(formulas, predicate, fixed_indices, prefi
                 formula.logical_formula.add_element(
                     ClosedWorldGroundAtoms(predicate, fixed_variables, exceptions, prefix))
     return formulas
+

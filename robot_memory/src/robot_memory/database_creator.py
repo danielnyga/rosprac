@@ -14,13 +14,16 @@ def create_database_collection(root_tasks):
         if task.success:
             _append_to_db(db, Predicates.TASK_SUCCESS, task.task_id)
         for designator in _get_all_designators_as_one_list(task):
-            _append_to_db(db, Predicates.DESIGNATOR, designator.designator_id, designator.designator_type)
+            _append_to_db(db, Predicates.DESIGNATOR_HASH, designator.designator_id, designator.sha1_hash)
+            _append_to_db(db, Predicates.DESIGNATOR_TYPE, designator.designator_id, designator.designator_type)
             for key, value in designator.properties:
                 _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, designator.designator_id, key, value)
             for key, sub_designator in designator.designators:
-                _append_to_db(db, Predicates.SUB_DESIGNATOR,designator.designator_id, key, sub_designator.designator_id)
+                _append_to_db(db, Predicates.SUB_DESIGNATOR,designator.designator_id, key, sub_designator.sha1_hash)
         for key, designator in task.designators:
-            _append_to_db(db, Predicates.DESIGNATOR_OR_VALUE, task.task_id, key, designator.designator_id)
+            designator_id = uuid.uuid4()
+            _append_to_db(db, Predicates.DESIGNATOR_OR_VALUE, task.task_id, key, designator_id)
+            _append_to_db(db, Predicates.GOAL_PROPERTY_DESIGNATOR, designator_id, designator.sha1_hash)
         if hasattr(task, "goal_pattern"):
             _append_to_db(db, Predicates.GOAL_PATTERN, task.task_id, task.goal_pattern)
         if hasattr(task, "goal_properties"):

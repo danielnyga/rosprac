@@ -5,7 +5,6 @@ from robot_memory import task_tree_preprocessor
 from robot_memory.robot_memory_constants import Types, Predicates
 from robot_memory.mln_elements import *
 import math
-import time
 import os
 
 
@@ -19,7 +18,7 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
     mlns = [
         _create_designator_mln(dbs)
     ]
-    FILENAME_PREFIX = "learnt_mlns_" + time.strftime("%Y-%m-%d_%H-%M-%S") + "/"
+    FILENAME_PREFIX = "learnt_mlns/"
     if not os.path.isdir(FILENAME_PREFIX):
         os.mkdir(FILENAME_PREFIX)
     if debug:
@@ -63,28 +62,65 @@ def _create_designator_mln(databases):
 
 
 def _learn_weights_and_save_mln(mln, databases, learner, filename_prefix):
+    filename = filename_prefix + mln.name + ".mln"
+    old_mln = ""
+    if os.path.isfile(filename):
+        with open(filename, "r") as f:
+            old_mln = f.read()
     if len(mln.formulas) == 0:
-        resulting_mln = mln
+        resulting_mln = old_mln if old_mln is not None else mln
     elif learner is None:
-        resulting_mln = _assign_weights(mln)
+        _assign_weights(mln)
+        resulting_mln = _combine_mlns(old_mln, mln)
     else:
         mln.formulas = list(set(mln.formulas))
-        resulting_mln = learner.learn(mln, databases)
-    f = open(filename_prefix + mln.name + ".mln", 'w')
-    f.write(str(resulting_mln))
-    f.close()
+        resulting_mln = learner.learn(old_mln, mln, databases)
+    with open(filename, "w+") as f:
+        f.write(str(resulting_mln))
+
+
+def _get_weight_offset():
+    return 400
 
 
 def _assign_weights(mln):
+    #TODO: Learn incrementally...
     new_formulas = []
     formula_frequency = {}
     for formula in mln.formulas:
         formula_frequency[formula] = 1 if formula not in formula_frequency else formula_frequency[formula]+1
     for formula, frequency in formula_frequency.items():
-        formula.weight = 400 + math.log(frequency)
+        formula.weight = _get_weight_offset() + math.log(frequency)
         new_formulas.append(formula)
     mln.formulas = new_formulas
-    return mln
+
+
+def _combine_mlns(old_mln, new_mln):
+    old_mln = str(old_mln)
+    new_mln = str(new_mln)
+    formulas = {}
+    other_lines = set()
+    for line in (old_mln+"\n"+new_mln).split("\n"):
+        stripped_line = line.strip()
+        if stripped_line == "":
+            continue
+        parts = stripped_line.split()
+        if not parts:
+            continue
+        potential_weight = parts[0]
+        try:
+            rest_of_the_line = line[len(potential_weight):].strip()
+            weight = float(potential_weight)
+            if rest_of_the_line not in formulas:
+                formulas[rest_of_the_line] = []
+            formulas[rest_of_the_line].append(weight)
+        except:
+            other_lines.add(stripped_line)
+    to_return = list(other_lines)
+    for formula, weights in formulas.items():
+        frequencies = sum([math.exp(weight - _get_weight_offset()) for weight in weights])
+        to_return.append(str(_get_weight_offset() + math.log(frequencies)) + " " + formula)
+    return reduce(lambda l1, l2: l1+"\n"+l2, to_return)
 
 
 def _create_mln_skeleton(mln_name):

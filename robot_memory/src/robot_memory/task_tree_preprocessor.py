@@ -11,18 +11,29 @@ def preprocess_task_tree(root_nodes):
         lambda n: n.name.lower() == "find-objects",
         lambda n: n.name.lower() == "at-location",
         lambda n: n.name.lower() == "monitor-action",
+    ],[
+        lambda k, v: k == "PARAMETERS" and "\n" in v
     ])
     return _round_numbers(root_nodes)
 
 
-def _remove_nodes(nodes, predicates_to_remove):
+def _remove_nodes(nodes, predicates_to_remove, property_predicates_to_remove):
     to_return = []
 
+    def remove_designator_properties_recursively(key, designator_to_examine):
+        for key_value_pair in list(designator_to_examine.properties):
+            if any([p(*key_value_pair) for p in property_predicates_to_remove]):
+                designator_to_examine.properties.remove(key_value_pair)
+        for sub_key, sub_designator in designator_to_examine.designators:
+            remove_designator_properties_recursively(sub_key, sub_designator)
+
     def remove_nodes_recursively(node_to_examine):
+        for designator in node_to_examine.designators:
+            remove_designator_properties_recursively(*designator)
         for child in list(node_to_examine.child_tasks):
             remove_nodes_recursively(child)
         parent = node_to_examine.parent_task
-        if reduce(lambda a, b: a or b, [p(node_to_examine) for p in predicates_to_remove], False):
+        if any([p(node_to_examine) for p in predicates_to_remove]):
             for child_task in node_to_examine.child_tasks:
                 child_task.parent_task = parent
                 if parent is not None:

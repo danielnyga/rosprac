@@ -19,14 +19,14 @@ class Predicates(object):
     TASK_NAME = Predicate("name", Types.TASK, +Types.TASK_NAME)
     TASK_SUCCESS = Predicate("success", Types.TASK)
     GOAL_PATTERN = Predicate("goalPattern", Types.TASK, -Types.GOAL_PATTERN)
-    GOAL_PROPERTY = Predicate("goalProperty", Types.TASK, Types.GOAL_KEY, -Types.GOAL_PROPERTY_VALUE)
-    GOAL_DESIGNATOR = Predicate("goalDesignator", Types.TASK, Types.GOAL_KEY, -Types.DESIGNATOR_HASH)
+    GOAL_PROPERTY = Predicate("goalProperty", Types.TASK, Types.GOAL_KEY, Types.GOAL_PROPERTY_VALUE)
+    GOAL_DESIGNATOR = Predicate("goalDesignator", Types.TASK, Types.GOAL_KEY, Types.DESIGNATOR_HASH)
     DESIGNATOR_TYPE = Predicate("designatorType", Types.DESIGNATOR, -Types.DESIGNATOR_TYPE)
     DESIGNATOR_HASH = Predicate("designatorHash", Types.DESIGNATOR, -Types.DESIGNATOR_HASH)
     DESIGNATOR_PROPERTY = Predicate(
-        "designatorProperty", Types.DESIGNATOR, Types.DESIGNATOR_PROPERTY_KEY, -Types.DESIGNATOR_PROPERTY_VALUE)
+        "designatorProperty", Types.DESIGNATOR, Types.DESIGNATOR_PROPERTY_KEY, Types.DESIGNATOR_PROPERTY_VALUE)
     SUB_DESIGNATOR = Predicate(
-        "subDesignator", Types.DESIGNATOR, Types.SUB_DESIGNATOR_KEY, -Types.DESIGNATOR_HASH)
+        "subDesignator", Types.DESIGNATOR, Types.SUB_DESIGNATOR_KEY, Types.DESIGNATOR_HASH)
 
     @staticmethod
     def get_all_predicates():

@@ -54,5 +54,10 @@ def _get_all_designators_as_one_list(task):
 
 
 def _escape(string):
-    return re.sub("\W", "_", str(string)).capitalize()
-    #TODO: Use base64 encoding...
+    if "\n" in str(string):
+        string = string.replace("\n", "_")
+        print("Warning: newline replaced by underscore in " + string)
+    if "\"" in str(string):
+        string = string.replace("\"", "_")
+        print("Warning: quotation mark replaced by underscore in " + string)
+    return "\"" + string + "\""

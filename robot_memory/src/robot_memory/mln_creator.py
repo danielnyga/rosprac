@@ -80,7 +80,7 @@ def _learn_weights_and_save_mln(mln, databases, learner, filename_prefix):
 
 
 def _get_weight_offset():
-    return 400
+    return 650
 
 
 def _assign_weights(mln):

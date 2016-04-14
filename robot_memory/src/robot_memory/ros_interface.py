@@ -90,7 +90,8 @@ def _create_task_trees(messages):
             designators = {}
             for designator in message.aggregated_child_designators:
                 if designator.id in designators:
-                    raise Exception("Duplicate designator ID:" + designator.id)
+                    print("Warning: Duplicate designator ID:" + designator.id)
+                    continue
                 designators[designator.id] = designator
             _add_designators(tree_node, message.designator_key_to_designator_id, designators)
             if hasattr(tree_node, "goal_pattern"):

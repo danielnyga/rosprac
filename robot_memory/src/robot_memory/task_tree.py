@@ -134,9 +134,6 @@ class Designator:
         return self.__properties
 
     def add_property(self, key, value):
-        # keys = [p[0] for p in self.properties]
-        # if key in keys:
-        #     raise Exception("Key " + key + " is used for more than one property!")
         self.__properties.append([key, value])
 
     def replace_property_value(self, old_pair, new_value):
@@ -148,8 +145,6 @@ class Designator:
 
     def add_designator(self, key, designator):
         keys = [d[0] for d in self.designators]
-        if key in keys:
-            raise Exception("Key " + key + " is used for more than one designator!")
         self.__designators.append((key, designator))
 
     def __str__(self):

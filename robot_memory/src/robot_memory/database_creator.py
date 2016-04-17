@@ -18,11 +18,17 @@ def create_database_collection(root_tasks):
             _append_to_db(db, Predicates.DESIGNATOR_HASH, designator.designator_id, designator.sha1_hash)
             _append_to_db(db, Predicates.DESIGNATOR_TYPE, designator.designator_id, designator.designator_type)
             for key, value in designator.properties:
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, designator.designator_id, key, value)
+                property_id = str(uuid.uuid4())
+                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator.designator_id)
+                _append_to_db(db, Predicates.PROPERTY_KEY, property_id, key)
+                _append_to_db(db, Predicates.PROPERTY_STRING_VALUE, property_id, value)
             for key, sub_designator in designator.designators:
-                _append_to_db(db, Predicates.SUB_DESIGNATOR, designator.designator_id, key, sub_designator.sha1_hash)
+                property_id = str(uuid.uuid4())
+                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator.designator_id)
+                _append_to_db(db, Predicates.PROPERTY_KEY, property_id, key)
+                _append_to_db(db, Predicates.PROPERTY_DESIGNATOR_VALUE, property_id, sub_designator.sha1_hash)
         if not all_sub_designators:
-            dummy_designator_id = uuid.uuid4()
+            dummy_designator_id = str(uuid.uuid4())
             db.append(DomainDeclaration(Types.DESIGNATOR, dummy_designator_id))
         for key, designator in task.designators:
             _append_to_db(db, Predicates.GOAL_DESIGNATOR, task.task_id, key, designator.sha1_hash)

@@ -34,54 +34,29 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
 
 def _create_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.DESIGNATOR)
-    necessary_designator_predicates = [Predicates.TASK_NAME]
-    top_level_designator_elements = necessary_designator_predicates + [Predicates.TASK_SUCCESS, Predicates.GOAL_PATTERN,
-                                                                       Predicates.GOAL_PROPERTY,
-                                                                       Predicates.GOAL_DESIGNATOR]
-    optional_designator_predicates = top_level_designator_elements + [Predicates.DESIGNATOR_HASH,
-                                                                      Predicates.DESIGNATOR_TYPE]
-    formulas = _get_formula_templates_from_databases(databases, optional_designator_predicates,
-                                                                necessary_designator_predicates)
+    necessary_predicates = [Predicates.TASK_NAME]
+    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.GOAL_PATTERN,
+                           Predicates.GOAL_PROPERTY, Predicates.GOAL_DESIGNATOR,
+                           Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE, Predicates.DESIGNATOR_HASH,
+                           Predicates.SUB_DESIGNATOR, Predicates.TASK_NAME]
+    formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
     formulas = _split_objects_of_different_type(formulas, Types.DESIGNATOR)
-    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR, "?d"), (Types.TASK, "?t"),
-                                              (Types.DESIGNATOR_PROPERTY, "?dp")])
-    top_level_designator_formulas, other_designator_formulas = _split_formulas_in_true_false_lists(formulas,
-                                                lambda f: _contains_ground_atom_with_predicate(f, Predicates.TASK_NAME))
-    other_designator_formulas = _remove_conjunction_elements(other_designator_formulas, top_level_designator_elements)
-    for formula in top_level_designator_formulas:
+    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR, "?d"),  (Types.TASK, "?t")])
+    for formula in formulas:
         for conjunction in formula.logical_formula:
             if not [gnd_atom for gnd_atom in conjunction if hasattr(gnd_atom, "predicate") and
                             gnd_atom.predicate == Predicates.TASK_SUCCESS]:
                 conjunction.add_element(~Predicates.TASK_SUCCESS("?t0"))
-    top_level_designator_formulas = _add_negation_for_all_but_existing(top_level_designator_formulas,
-                                                                       Predicates.DESIGNATOR_HASH, 0, "?p",
-                                                                       lambda f: not _domain_declaration_in_formula(f))
-    top_level_designator_formulas = _add_negation_for_all_but_existing(top_level_designator_formulas,
-                                                                       Predicates.DESIGNATOR_TYPE, 0, "?p",
-                                                                       lambda f: not _domain_declaration_in_formula(f))
-    top_level_designator_formulas = _add_negation_for_all_but_existing(top_level_designator_formulas,
-                                                                       Predicates.GOAL_PATTERN, 0, "?p")
-    top_level_designator_formulas = _add_negation_for_all_but_existing(top_level_designator_formulas,
-                                                                       Predicates.GOAL_PROPERTY, 0, "?p")
-    top_level_designator_formulas = _add_negation_for_all_but_existing(top_level_designator_formulas,
-                                                                       Predicates.GOAL_DESIGNATOR, 0, "?p")
-    top_level_designator_formulas = _remove_domain_declarations(top_level_designator_formulas)
-    necessary_property_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_HASH,Predicates.PROPERTY_KEY]
-    optional_property_predicates = necessary_property_predicates + [Predicates.PROPERTY_STRING_VALUE,
-                                                                    Predicates.PROPERTY_DESIGNATOR_VALUE]
-    property_formulas = _get_formula_templates_from_databases(databases, optional_property_predicates,
-                                                              necessary_property_predicates)
-    property_formulas = _split_objects_of_different_type(property_formulas, Types.DESIGNATOR)
-    property_formulas = _split_objects_of_different_type(property_formulas, Types.DESIGNATOR_PROPERTY)
-    property_formulas = _apply_replacements(property_formulas,[(Types.DESIGNATOR, "?d"),
-                                                               (Types.DESIGNATOR_PROPERTY, "?dp")])
-    property_formulas = _add_negation_for_all_but_existing(property_formulas, Predicates.PROPERTY_STRING_VALUE, 0,
-                                                           "?dvs", lambda f: _contains_ground_atom_with_predicate(
-                                                                             f, Predicates.PROPERTY_STRING_VALUE))
-    property_formulas = _add_negation_for_all_but_existing(property_formulas, Predicates.PROPERTY_DESIGNATOR_VALUE, 0,
-                                                           "?dvd", lambda f: _contains_ground_atom_with_predicate(
-                                                                             f, Predicates.PROPERTY_DESIGNATOR_VALUE))
-    formulas = other_designator_formulas + top_level_designator_formulas + property_formulas
+    formulas = _add_negation_for_all_but_existing(
+        formulas, Predicates.DESIGNATOR_HASH, 0, "?p", lambda f: not _domain_declaration_in_formula(f))
+    formulas = _add_negation_for_all_but_existing(
+        formulas, Predicates.DESIGNATOR_TYPE, 0, "?p", lambda f: not _domain_declaration_in_formula(f))
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_DESIGNATOR, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY, 0, "?p")
+    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR, 0, "?p")
+    formulas = _remove_domain_declarations(formulas)
     mln.append_formulas(formulas)
     return mln
 
@@ -109,21 +84,18 @@ def _get_weight_offset():
 
 
 def _assign_weights(mln):
+    #TODO: Learn incrementally...
     new_formulas = []
     formula_frequency = {}
     for formula in mln.formulas:
         formula_frequency[formula] = 1 if formula not in formula_frequency else formula_frequency[formula]+1
     for formula, frequency in formula_frequency.items():
-        if _contains_ground_atom_with_predicate(formula, Predicates.TASK_NAME):
-            formula.weight = _get_weight_offset() + math.log(frequency)
-        else:
-            formula.weight = _get_weight_offset()
+        formula.weight = _get_weight_offset() + math.log(frequency)
         new_formulas.append(formula)
     mln.formulas = new_formulas
 
 
 def _combine_mlns(old_mln, new_mln):
-    #TODO: Do not increment weight of non top level formulas...
     old_mln = str(old_mln)
     new_mln = str(new_mln)
     formulas = {}
@@ -259,38 +231,6 @@ def _remove_domain_declarations(formulas):
             remove_domain_declarations_recursively(sub_formula)
 
     return formulas
-
-
-def _split_formulas_in_true_false_lists(formulas, condition):
-    true_list = []
-    false_list = []
-    for formula in formulas:
-        if condition(formula):
-            true_list.append(formula)
-        else:
-            false_list.append(formula)
-    return true_list, false_list
-
-
-def _remove_conjunction_elements(formulas, predicates_to_remove):
-    to_return = []
-    for formula in formulas:
-        for atom in list(formulas.logical_formula):
-            if atom.predicate in predicates_to_remove:
-                formula.logical_formula.remove_element(atom)
-        if len(formula.logical_formula) > 0:
-            to_return.append(formula)
-    return to_return
-
-
-def _contains_ground_atom_with_predicate(formula, predicate):
-    if hasattr(formula, "logical_formula"):
-        return _contains_ground_atom_with_predicate(formula.logical_formula, predicate)
-    if hasattr(formula, "predicate"):
-        return formula.predicate == predicate
-    if not hasattr(formula, "__iter__"):
-        return False
-    return any([_contains_ground_atom_with_predicate(child, predicate) for child in formula])
 
 
 def _domain_declaration_in_formula(formula):

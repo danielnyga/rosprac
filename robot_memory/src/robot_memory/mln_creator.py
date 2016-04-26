@@ -67,21 +67,15 @@ def _create_designator_mln(databases):
                                                                        Predicates.GOAL_DESIGNATOR, 0, "?p")
     top_level_designator_formulas = _remove_domain_declarations(top_level_designator_formulas)
     necessary_property_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_HASH,Predicates.PROPERTY_KEY]
-    optional_property_predicates = necessary_property_predicates + [Predicates.PROPERTY_STRING_VALUE,
-                                                                    Predicates.PROPERTY_DESIGNATOR_VALUE]
+    optional_property_predicates = necessary_property_predicates + [Predicates.PROPERTY_VALUE]
     property_formulas = _get_formula_templates_from_databases(databases, optional_property_predicates,
                                                               necessary_property_predicates)
     property_formulas = _split_objects_of_different_type(property_formulas, Types.DESIGNATOR)
     property_formulas = _split_objects_of_different_type(property_formulas, Types.DESIGNATOR_PROPERTY)
     property_formulas = _apply_replacements(property_formulas,[(Types.DESIGNATOR, "?d"),
                                                                (Types.DESIGNATOR_PROPERTY, "?dp")])
-    property_formulas = _add_negation_for_all_but_existing(property_formulas, Predicates.PROPERTY_STRING_VALUE, 0,
-                                                           "?dvs", lambda f: _contains_ground_atom_with_predicate(
-                                                                             f, Predicates.PROPERTY_STRING_VALUE))
-    property_formulas = _add_negation_for_all_but_existing(property_formulas, Predicates.PROPERTY_DESIGNATOR_VALUE, 0,
-                                                           "?dvd", lambda f: _contains_ground_atom_with_predicate(
-                                                                             f, Predicates.PROPERTY_DESIGNATOR_VALUE))
     formulas = other_designator_formulas + top_level_designator_formulas + property_formulas
+    formula = _add_negation_for_all_but_existing_designator_hashes(formulas, databases)
     mln.append_formulas(formulas)
     return mln
 
@@ -241,6 +235,25 @@ def _add_negation_for_all_but_existing(formulas, predicate, fixed_index, prefix,
             for fixed_variables, exceptions in fixed_variables_to_list_of_exceptions.items():
                 formula.logical_formula.add_element(
                     ClosedWorldGroundAtoms(predicate, fixed_variables, exceptions, prefix))
+    return formulas
+
+
+def _add_negation_for_all_but_existing_designator_hashes(formulas, databases):
+    hashes = {}
+    for db in databases:
+        db_hashes = {ga.get_argument_value(1) for ga in db if hasattr(ga, "predicate") and
+                                                              ga.predicate == Predicates.DESIGNATOR_HASH}
+        for h in db_hashes:
+            if h not in hashes:
+                hashes[h] = set()
+            hashes[h] |= db_hashes
+    for formula in formulas:
+        atoms = reduce(lambda a, b: a+b, [list(c) for c in formula.logical_formula if isinstance(c, Conjunction)], [])
+        hashes_in_formula = set([a.get_argument_value(1)  for a in atoms if a.predicate == Predicates.DESIGNATOR_HASH])
+        hashes_in_negation = reduce(lambda a, b: a|b, [hashes[h] for h in hashes_in_formula], set())
+        negation = {tuple([(1, h)]) for h in hashes_in_negation}
+        formula.logical_formula.add_element(
+            ClosedWorldGroundAtoms(Predicates.DESIGNATOR_HASH, (), negation, "?d2"))
     return formulas
 
 

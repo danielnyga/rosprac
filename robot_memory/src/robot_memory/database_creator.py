@@ -21,12 +21,12 @@ def create_database_collection(root_tasks):
                 property_id = str(uuid.uuid4())
                 _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator.designator_id)
                 _append_to_db(db, Predicates.PROPERTY_KEY, property_id, key)
-                _append_to_db(db, Predicates.PROPERTY_STRING_VALUE, property_id, value)
+                _append_to_db(db, Predicates.PROPERTY_VALUE, property_id, value)
             for key, sub_designator in designator.designators:
                 property_id = str(uuid.uuid4())
                 _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator.designator_id)
                 _append_to_db(db, Predicates.PROPERTY_KEY, property_id, key)
-                _append_to_db(db, Predicates.PROPERTY_DESIGNATOR_VALUE, property_id, sub_designator.sha1_hash)
+                _append_to_db(db, Predicates.PROPERTY_VALUE, property_id, sub_designator.sha1_hash)
         if not all_sub_designators:
             dummy_designator_id = str(uuid.uuid4())
             db.append(DomainDeclaration(Types.DESIGNATOR, dummy_designator_id))

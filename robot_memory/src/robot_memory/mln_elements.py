@@ -383,8 +383,7 @@ class ClosedWorldGroundAtoms(object):
         variables = []
         index_to_quantified_variable = {}
         for variable_index in range(0, len(self.__predicate.types)):
-            variable_is_fixed = False if not self.__fixed_index_value_pairs else \
-                variable_index in zip(*self.__fixed_index_value_pairs)[0]
+            variable_is_fixed = variable_index in zip(*self.__fixed_index_value_pairs)[0]
             if variable_is_fixed:
                 variables.append(filter(lambda x: x[0] == variable_index, self.__fixed_index_value_pairs)[0][1])
             else:

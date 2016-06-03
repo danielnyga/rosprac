@@ -14,7 +14,10 @@ def preprocess_task_tree(root_nodes):
     ],[
         lambda k, v: k == "PARAMETERS" and "\n" in v
     ])
-    return _round_numbers(root_nodes)
+    return _apply_value_replacements(pruned_tree, [
+        _round_number_if_necessary,
+        lambda pose: pose if not pose.startswith("(map,") else "<hard coded pose>"
+    ])
 
 
 def _remove_nodes(nodes, predicates_to_remove, property_predicates_to_remove):
@@ -50,29 +53,35 @@ def _remove_nodes(nodes, predicates_to_remove, property_predicates_to_remove):
     return to_return
 
 
-def _round_numbers(nodes):
-    def round_number_if_necessary(number):
-        if not re.match("[0-9]\.[0-9]", number):
-            return number
-        number_as_float = float(number)
-        return "%.3f" % number_as_float
+def _apply_value_replacements(nodes, replacements):
+    def apply_replacements(value):
+        for replacement in replacements:
+            value = replacement(value)
+        return value
 
-    def round_numbers_recursively(node):
+    def apply_replacements_recursively(node):
         if hasattr(node, "goal_properties"):
             for key_value_pair in node.goal_properties:
-                node.replace_goal_property_value(key_value_pair, round_number_if_necessary(key_value_pair[1]))
+                node.replace_goal_property_value(key_value_pair, apply_replacements(key_value_pair[1]))
         if hasattr(node, "designators"):
             for key, designator in node.designators:
-                round_designator_recursively(designator)
+                apply_replacements_to_designator_recursively(designator)
         for child in list(node.child_tasks):
-            round_numbers_recursively(child)
+            apply_replacements_recursively(child)
 
-    def round_designator_recursively(designator):
+    def apply_replacements_to_designator_recursively(designator):
         for key_value_pair in designator.properties:
-            designator.replace_property_value(key_value_pair, round_number_if_necessary(key_value_pair[1]))
+            designator.replace_property_value(key_value_pair, apply_replacements(key_value_pair[1]))
         for key, child_designator in designator.designators:
-            round_designator_recursively(child_designator)
+            apply_replacements_to_designator_recursively(child_designator)
 
     for n in nodes:
-        round_numbers_recursively(n)
+        apply_replacements_recursively(n)
     return nodes
+
+
+def _round_number_if_necessary(number):
+    if not re.match("[0-9]\.[0-9]", number):
+        return number
+    number_as_float = float(number)
+    return "%.3f" % number_as_float

@@ -9,13 +9,15 @@ import os
 
 
 class MlnType(object):
-    DESIGNATOR = "Designator"
+    TASK_AND_DESIGNATOR = "task_and_designator"
+    DESIGNATOR = "designator"
 
 
 def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
     root_nodes = task_tree_preprocessor.preprocess_task_tree(root_nodes)
     dbs = database_creator.create_database_collection(root_nodes)
     mlns = [
+        _create_task_and_designator_mln(dbs),
         _create_designator_mln(dbs)
     ]
     FILENAME_PREFIX = "learnt_mlns/"
@@ -32,20 +34,35 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
         _learn_weights_and_save_mln(mln, dbs, learner, FILENAME_PREFIX)
 
 
-def _create_designator_mln(databases):
-    mln = _create_mln_skeleton(MlnType.DESIGNATOR)
+def _create_task_and_designator_mln(databases):
+    mln = _create_mln_skeleton(MlnType.TASK_AND_DESIGNATOR)
     necessary_predicates = [Predicates.TASK_NAME]
     optional_predicates = [Predicates.TASK_SUCCESS, Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE,
                            Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE,
-                           Predicates.GOAL_PATTERN, Predicates.TASK_NAME]
+                           Predicates.GOAL_PATTERN, Predicates.TASK_NAME, Predicates.GOAL_PARAMETER,
+                           Predicates.GOAL_PARAMETER_KEY]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
     formulas = _split_different_designators(formulas)
-    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"),  (Types.TASK, "?t")])
+    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"),  (Types.TASK, "?t"),
+                                              (Types.DESIGNATOR, "?d")])
+    formulas = _add_negation_if_necessary(formulas, Predicates.TASK_SUCCESS, ~Predicates.TASK_SUCCESS("?t0"))
+    mln.append_formulas(formulas)
+    return mln
+
+
+def _create_designator_mln(databases):
+    mln = _create_mln_skeleton(MlnType.DESIGNATOR)
+    necessary_predicates = [Predicates.DESIGNATOR_TYPE, Predicates.TASK_SUCCESS]
+    optional_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE, Predicates.TASK_SUCCESS,
+                           Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE]
+    formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
+    formulas = _split_different_designators(formulas)
+    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"), (Types.DESIGNATOR, "?d")])
     for formula in formulas:
         for conjunction in formula.logical_formula:
-            if not [gnd_atom for gnd_atom in conjunction if hasattr(gnd_atom, "predicate") and
-                            gnd_atom.predicate == Predicates.TASK_SUCCESS]:
-                conjunction.add_element(~Predicates.TASK_SUCCESS("?t0"))
+            for atom in list(conjunction):
+                if atom.predicate == Predicates.TASK_SUCCESS:
+                    conjunction.remove_element(atom)
     mln.append_formulas(formulas)
     return mln
 
@@ -182,18 +199,18 @@ def _split_different_designators(formulas):
     for formula in formulas:
         for conjunction in formula.logical_formula:
             property_predicates = [Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY,
-                                  Predicates.DESIGNATOR_PROPERTY_VALUE, Predicates.DESIGNATOR_TYPE]
+                                   Predicates.DESIGNATOR_PROPERTY_VALUE]
             other_atoms = filter(lambda atom: atom.predicate not in property_predicates, conjunction)
             property_atoms = filter(lambda atom: atom.predicate in property_predicates, conjunction)
             get_property_arguments = lambda atom: atom.get_argument_values(Types.DESIGNATOR_PROPERTY)[0]
             property_atoms.sort(key = get_property_arguments)
             property_groups = [list(group) for _, group in groupby(property_atoms, get_property_arguments)]
-            get_property_keys = lambda grp: [a.get_argument_values(Types.DESIGNATOR_PROPERTY_KEY) for a in grp]
-            get_property_key = lambda grp: [keys[0] for keys in get_property_keys(grp) if keys][0]
-            property_groups = [(get_property_key(group), group) for group in property_groups]
+            get_designators = lambda grp: [a.get_argument_values(Types.DESIGNATOR) for a in grp]
+            get_designator = lambda grp: [designators[0] for designators in get_designators(grp) if designators][0]
+            property_groups = [(get_designator(group), group) for group in property_groups]
             property_groups.sort(key=lambda key_group_pair: key_group_pair[0])
-            for _, properties_for_one_goal_property in groupby(property_groups, key=lambda kgp: kgp[0].split("::")[0]):
-                properties_for_one_goal_property=[properties for _,properties in properties_for_one_goal_property]
+            for _, properties_for_one_goal_property in groupby(property_groups, key=lambda kgp: kgp[0]):
+                properties_for_one_goal_property=[properties for _, properties in properties_for_one_goal_property]
                 if len(properties_for_one_goal_property) == 1:
                     conjunction_elements = [list(properties_for_one_goal_property[0])+other_atoms]
                 else:
@@ -204,3 +221,12 @@ def _split_different_designators(formulas):
                     new_formula = Formula(formula.weight, Conjunction([Conjunction(atoms)]))
                     to_return.append(new_formula)
     return to_return
+
+
+def _add_negation_if_necessary(formulas, predicate, negation):
+    for formula in formulas:
+        for conjunction in formula.logical_formula:
+            if not [gnd_atom for gnd_atom in conjunction if hasattr(gnd_atom, "predicate") and
+                            gnd_atom.predicate == predicate]:
+                conjunction.add_element(negation)
+    return formulas

@@ -5,28 +5,22 @@ class Types(object):
     TASK = Type("task")
     TASK_NAME = Type("taskName")
     GOAL_PATTERN = Type("goalPattern")
-    GOAL_KEY = Type("goalKey")
-    GOAL_PROPERTY_VALUE = Type("goalPropertyValue")
-    DESIGNATOR = Type("designator")
     DESIGNATOR_TYPE = Type("designatorType")
-    DESIGNATOR_HASH = Type("designatorHash")
+    DESIGNATOR_PROPERTY = Type("designatorProperty")
     DESIGNATOR_PROPERTY_KEY = Type("designatorPropertyKey")
     DESIGNATOR_PROPERTY_VALUE = Type("designatorPropertyValue")
-    SUB_DESIGNATOR_KEY = Type("subDesignatorKey")
 
 
 class Predicates(object):
     TASK_NAME = Predicate("name", Types.TASK, +Types.TASK_NAME)
     TASK_SUCCESS = Predicate("success", Types.TASK)
     GOAL_PATTERN = Predicate("goalPattern", Types.TASK, -Types.GOAL_PATTERN)
-    GOAL_PROPERTY = Predicate("goalProperty", Types.TASK, Types.GOAL_KEY, Types.GOAL_PROPERTY_VALUE)
-    GOAL_DESIGNATOR = Predicate("goalDesignator", Types.TASK, Types.GOAL_KEY, Types.DESIGNATOR_HASH)
-    DESIGNATOR_TYPE = Predicate("designatorType", Types.DESIGNATOR, -Types.DESIGNATOR_TYPE)
-    DESIGNATOR_HASH = Predicate("designatorHash", Types.DESIGNATOR, -Types.DESIGNATOR_HASH)
-    DESIGNATOR_PROPERTY = Predicate(
-        "designatorProperty", Types.DESIGNATOR, Types.DESIGNATOR_PROPERTY_KEY, Types.DESIGNATOR_PROPERTY_VALUE)
-    SUB_DESIGNATOR = Predicate(
-        "subDesignator", Types.DESIGNATOR, Types.SUB_DESIGNATOR_KEY, Types.DESIGNATOR_HASH)
+    DESIGNATOR_PROPERTY = Predicate("designatorProperty", Types.DESIGNATOR_PROPERTY, +Types.TASK) # TODO: Insert first property here ?!
+                                                                                                  # TODO: Add additional formulas combining property + task...
+                                                                                                  # TODO: Add count to measure how many propertys are needed...
+    DESIGNATOR_PROPERTY_KEY = Predicate("propertyKey", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_PROPERTY_KEY)
+    DESIGNATOR_PROPERTY_VALUE = Predicate("propertyValue", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_PROPERTY_VALUE)
+    DESIGNATOR_TYPE = Predicate("designatorType", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_TYPE)
 
     @staticmethod
     def get_all_predicates():

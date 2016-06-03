@@ -1,4 +1,4 @@
-from itertools import groupby
+from itertools import groupby, combinations
 
 from robot_memory import database_creator
 from robot_memory import task_tree_preprocessor
@@ -35,28 +35,17 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
 def _create_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.DESIGNATOR)
     necessary_predicates = [Predicates.TASK_NAME]
-    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.GOAL_PATTERN,
-                           Predicates.GOAL_PROPERTY, Predicates.GOAL_DESIGNATOR,
-                           Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE, Predicates.DESIGNATOR_HASH,
-                           Predicates.SUB_DESIGNATOR, Predicates.TASK_NAME]
+    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE,
+                           Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE,
+                           Predicates.GOAL_PATTERN, Predicates.TASK_NAME]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
-    formulas = _split_objects_of_different_type(formulas, Types.DESIGNATOR)
-    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR, "?d"),  (Types.TASK, "?t")])
+    formulas = _split_different_designators(formulas)
+    formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"),  (Types.TASK, "?t")])
     for formula in formulas:
         for conjunction in formula.logical_formula:
             if not [gnd_atom for gnd_atom in conjunction if hasattr(gnd_atom, "predicate") and
                             gnd_atom.predicate == Predicates.TASK_SUCCESS]:
                 conjunction.add_element(~Predicates.TASK_SUCCESS("?t0"))
-    formulas = _add_negation_for_all_but_existing(
-        formulas, Predicates.DESIGNATOR_HASH, 0, "?p", lambda f: not _domain_declaration_in_formula(f))
-    formulas = _add_negation_for_all_but_existing(
-        formulas, Predicates.DESIGNATOR_TYPE, 0, "?p", lambda f: not _domain_declaration_in_formula(f))
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PATTERN, 0, "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_PROPERTY, 0, "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.GOAL_DESIGNATOR, 0, "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.DESIGNATOR_PROPERTY, 0, "?p")
-    formulas = _add_negation_for_all_but_existing(formulas, Predicates.SUB_DESIGNATOR, 0, "?p")
-    formulas = _remove_domain_declarations(formulas)
     mln.append_formulas(formulas)
     return mln
 
@@ -84,7 +73,6 @@ def _get_weight_offset():
 
 
 def _assign_weights(mln):
-    #TODO: Learn incrementally...
     new_formulas = []
     formula_frequency = {}
     for formula in mln.formulas:
@@ -149,10 +137,28 @@ def _apply_replacements(formulas, formula_replacements):
     for formula in formulas:
         replacements = {}
 
+        def order(conjunction):
+            replacement_types = {replacement[0] for replacement in formula_replacements}
+            if not all([hasattr(e, "predicate") and hasattr(e, "type_value_pairs") for e in conjunction]):
+                return conjunction
+            first = []
+            last = []
+            for _, group in groupby(sorted(conjunction, key=lambda e1: e1.predicate), lambda e2: e2.predicate):
+                group = list(group)
+                tvps = [(str([tvp for tvp in e.type_value_pairs if tvp[0] not in replacement_types]), e) for e in group]
+                different_arguments = len(list(groupby(tvps, lambda tvp: tvp[0]))) > 1
+                if different_arguments:
+                    first += [e for _, e in sorted(tvps)]
+                else:
+                    last += list(group)
+            return first + last
+
         def apply_replacements_recursively(element, suffix):
             if hasattr(element, "__iter__"):
-                for child in element:
+                for child in order(element):
                     suffix = apply_replacements_recursively(child, suffix)
+                if hasattr(element, "sort"):
+                    element.sort()
             else:
                 for replacement in formula_replacements:
                     constant_type = replacement[0]
@@ -171,78 +177,30 @@ def _apply_replacements(formulas, formula_replacements):
     return formulas
 
 
-def _split_objects_of_different_type(formulas, type_to_split):
+def _split_different_designators(formulas):
     to_return = []
     for formula in formulas:
         for conjunction in formula.logical_formula:
-            atoms_with_type = filter(lambda atom: atom.get_argument_values(type_to_split), conjunction)
-            atoms_without_type = filter(lambda atom: not atom.get_argument_values(type_to_split), conjunction)
-            if not atoms_with_type:
-                to_return.append(formula)
-                continue
-            atoms_with_type.sort(key=lambda atom: atom.get_argument_values(type_to_split)[0])
-            for _, group in groupby(atoms_with_type, key=lambda atom: atom.get_argument_values(type_to_split)[0]):
-                to_return.append(Formula(formula.weight, Conjunction([Conjunction(
-                    [FormulaGroundAtom(gnd_atom) if isinstance(gnd_atom, GroundAtom) else gnd_atom
-                     for gnd_atom in atoms_without_type + list(group)], False, True)])))
+            property_predicates = [Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY,
+                                  Predicates.DESIGNATOR_PROPERTY_VALUE, Predicates.DESIGNATOR_TYPE]
+            other_atoms = filter(lambda atom: atom.predicate not in property_predicates, conjunction)
+            property_atoms = filter(lambda atom: atom.predicate in property_predicates, conjunction)
+            get_property_arguments = lambda atom: atom.get_argument_values(Types.DESIGNATOR_PROPERTY)[0]
+            property_atoms.sort(key = get_property_arguments)
+            property_groups = [list(group) for _, group in groupby(property_atoms, get_property_arguments)]
+            get_property_keys = lambda grp: [a.get_argument_values(Types.DESIGNATOR_PROPERTY_KEY) for a in grp]
+            get_property_key = lambda grp: [keys[0] for keys in get_property_keys(grp) if keys][0]
+            property_groups = [(get_property_key(group), group) for group in property_groups]
+            property_groups.sort(key=lambda key_group_pair: key_group_pair[0])
+            for _, properties_for_one_goal_property in groupby(property_groups, key=lambda kgp: kgp[0].split("::")[0]):
+                properties_for_one_goal_property=[properties for _,properties in properties_for_one_goal_property]
+                if len(properties_for_one_goal_property) == 1:
+                    conjunction_elements = [list(properties_for_one_goal_property[0])+other_atoms]
+                else:
+                    atom_combinations = combinations(properties_for_one_goal_property, 2)
+                    conjunction_elements = [other_atoms + list(c[0]) + list(c[1]) for c in atom_combinations]
+                for atoms in conjunction_elements:
+                    atoms = [FormulaGroundAtom(atom) for atom in atoms]
+                    new_formula = Formula(formula.weight, Conjunction([Conjunction(atoms)]))
+                    to_return.append(new_formula)
     return to_return
-
-
-def _add_negation_for_all_but_existing(formulas, predicate, fixed_index, prefix, skip=lambda formula: False):
-    for formula in formulas: #TODO: Make it work on nested elements...
-        if skip(formula):
-            continue
-        for conjunction in list(formula.logical_formula):
-            if not isinstance(conjunction, Conjunction):
-                continue
-            fixed_type = predicate.types[fixed_index]
-            fixed_variables_to_list_of_exceptions = {}
-            for ground_atom in conjunction:
-                if hasattr(ground_atom, "predicate") and ground_atom.predicate == predicate:
-                    fixed_variables = tuple([(fixed_index, ground_atom.get_argument_value(fixed_index))])
-                    if not fixed_variables in fixed_variables_to_list_of_exceptions:
-                        fixed_variables_to_list_of_exceptions[fixed_variables]=set()
-                    exceptions = [(index, ground_atom.get_argument_value(index)) for index
-                                  in range(0, len(ground_atom.predicate.types)) if index != fixed_index]
-                    fixed_variables_to_list_of_exceptions[fixed_variables].add(tuple(exceptions))
-                elif hasattr(ground_atom, "get_argument_values"):
-                    for argument_value in ground_atom.get_argument_values(fixed_type):
-                        fixed_variables = tuple([(fixed_index, argument_value)])
-                        if fixed_variables not in fixed_variables_to_list_of_exceptions:
-                            fixed_variables_to_list_of_exceptions[fixed_variables] = set()
-            for fixed_variables, exceptions in fixed_variables_to_list_of_exceptions.items():
-                formula.logical_formula.add_element(
-                    ClosedWorldGroundAtoms(predicate, fixed_variables, exceptions, prefix))
-    return formulas
-
-
-def _remove_domain_declarations(formulas):
-    def remove_domain_declarations_recursively(sub_formula):
-        if not hasattr(sub_formula, "__iter__"):
-            return
-        for child in sub_formula:
-            if isinstance(child, DomainDeclaration):
-                sub_formula.remove_element(child)
-            else:
-                remove_domain_declarations_recursively(child)
-
-    for formula in formulas:
-        for sub_formula in formula.logical_formula:
-            remove_domain_declarations_recursively(sub_formula)
-
-    return formulas
-
-
-def _domain_declaration_in_formula(formula):
-    if hasattr(formula, "logical_formula"):
-        formula = formula.logical_formula
-    if not hasattr(formula, "__iter__"):
-        return False
-    for child in formula:
-        if isinstance(child, DomainDeclaration):
-            return True
-        elif _domain_declaration_in_formula(child):
-            return True
-    return False
-
-#TODO: Move all trhee *recursively* functions into one...

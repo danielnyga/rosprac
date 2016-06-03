@@ -15,7 +15,7 @@ class GroundAtom(NegatableElement):
     def __init__(self, predicate, constants, negated=False):
         NegatableElement.__init__(self, negated)
         self.__predicate = predicate
-        self._constants = [list(typeValuePair) for typeValuePair in constants]
+        self._constants = [[type, str(value)] for type, value in constants]
 
     def __invert__(self):
         return GroundAtom(self.__predicate, self._constants, not self.negated)
@@ -201,7 +201,7 @@ class Database(object):
 
 class FormulaGroundAtom(GroundAtom):
     def __init__(self, gnd_atom):
-        GroundAtom.__init__(self, gnd_atom.predicate, [const for const in gnd_atom._constants], gnd_atom.negated)
+        GroundAtom.__init__(self, gnd_atom.predicate, gnd_atom._constants, gnd_atom.negated)
         self.__apply_expand_operator = False
 
     def __eq__(self, other):
@@ -289,6 +289,9 @@ class LogicalConnective(NegatableElement):
 
     def remove_element(self, element):
         self._elements.remove(element)
+
+    def sort(self):
+        self._elements.sort(key=lambda a: str(a))
 
 
 class Conjunction(LogicalConnective):

@@ -13,24 +13,21 @@ def create_database_collection(root_tasks):
         _append_to_db(db, Predicates.TASK_NAME, task.task_id, task.name)
         if task.success:
             _append_to_db(db, Predicates.TASK_SUCCESS, task.task_id)
-        all_sub_designators = _get_all_designators_as_one_list(task)
-        for designator in all_sub_designators:
-            _append_to_db(db, Predicates.DESIGNATOR_HASH, designator.designator_id, designator.sha1_hash)
-            _append_to_db(db, Predicates.DESIGNATOR_TYPE, designator.designator_id, designator.designator_type)
-            for key, value in designator.properties:
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, designator.designator_id, key, value)
-            for key, sub_designator in designator.designators:
-                _append_to_db(db, Predicates.SUB_DESIGNATOR, designator.designator_id, key, sub_designator.sha1_hash)
-        if not all_sub_designators:
-            dummy_designator_id = uuid.uuid4()
-            db.append(DomainDeclaration(Types.DESIGNATOR, dummy_designator_id))
-        for key, designator in task.designators:
-            _append_to_db(db, Predicates.GOAL_DESIGNATOR, task.task_id, key, designator.sha1_hash)
+        for key, designator, value in _get_full_scoped_key_designator_and_value(task):
+            property_id = str(uuid.uuid4())
+            _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, task.task_id)
+            _append_to_db(db, Predicates.DESIGNATOR_TYPE, property_id, designator.designator_type)
+            _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_KEY, property_id, key)
+            _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_VALUE, property_id, value)
         if hasattr(task, "goal_pattern"):
             _append_to_db(db, Predicates.GOAL_PATTERN, task.task_id, task.goal_pattern)
         if hasattr(task, "goal_properties"):
             for key, value in task.goal_properties:
-                _append_to_db(db, Predicates.GOAL_PROPERTY, task.task_id, key, value)
+                property_id = str(uuid.uuid4())
+                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, task.task_id)
+                _append_to_db(db, Predicates.DESIGNATOR_TYPE, property_id, "none")
+                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_KEY, property_id, key)
+                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_VALUE, property_id, value)
     return to_return
 
 
@@ -46,11 +43,14 @@ def _get_all_tasks_as_one_list(root_tasks):
     return reduce(lambda l1, l2: l1+l2, [get_sub_tasks_as_list(root_task) for root_task in root_tasks], [])
 
 
-def _get_all_designators_as_one_list(task):
-    def get_designators_as_list(d):
-        return [d] + reduce(lambda l1, l2: l1+l2, [get_designators_as_list(child) for _, child in d.designators], [])
-
-    return reduce(lambda l1,l2: l2+l2, [get_designators_as_list(d) for _,d in task.designators], [])
+def _get_full_scoped_key_designator_and_value(task_or_designator, previous_keys_as_string=""):
+    key = "" if previous_keys_as_string == "" else previous_keys_as_string + "::"
+    sub_designators = [_get_full_scoped_key_designator_and_value(d, key + k) for k, d in task_or_designator.designators]
+    get_designator = lambda d: d if previous_keys_as_string == "" else task_or_designator
+    flattened_sub_designators = [(k, get_designator(d), v) for kv_pairs in sub_designators for k, d, v in kv_pairs]
+    key_value_pairs = task_or_designator.properties if hasattr(task_or_designator, "properties") else []
+    properties = [(key+k, task_or_designator, v) for k, v in key_value_pairs]
+    return flattened_sub_designators + properties
 
 
 def _escape(string):

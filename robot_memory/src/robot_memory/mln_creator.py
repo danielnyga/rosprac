@@ -198,24 +198,29 @@ def _split_different_designators(formulas):
     to_return = []
     for formula in formulas:
         for conjunction in formula.logical_formula:
-            property_predicates = [Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY,
-                                   Predicates.DESIGNATOR_PROPERTY_VALUE]
-            other_atoms = filter(lambda atom: atom.predicate not in property_predicates, conjunction)
-            property_atoms = filter(lambda atom: atom.predicate in property_predicates, conjunction)
-            get_property_arguments = lambda atom: atom.get_argument_values(Types.DESIGNATOR_PROPERTY)[0]
-            property_atoms.sort(key = get_property_arguments)
-            property_groups = [list(group) for _, group in groupby(property_atoms, get_property_arguments)]
-            get_designators = lambda grp: [a.get_argument_values(Types.DESIGNATOR) for a in grp]
-            get_designator = lambda grp: [designators[0] for designators in get_designators(grp) if designators][0]
-            property_groups = [(get_designator(group), group) for group in property_groups]
-            property_groups.sort(key=lambda key_group_pair: key_group_pair[0])
-            for _, properties_for_one_goal_property in groupby(property_groups, key=lambda kgp: kgp[0]):
-                properties_for_one_goal_property=[properties for _, properties in properties_for_one_goal_property]
-                if len(properties_for_one_goal_property) == 1:
-                    conjunction_elements = [list(properties_for_one_goal_property[0])+other_atoms]
+            designator_property_list = [(atom.get_argument_values(Types.DESIGNATOR), atom,
+                                         atom.get_argument_values(Types.DESIGNATOR_PROPERTY)) for atom in conjunction]
+            property_designator_map = {p[0]: d[0] for d, _, p in designator_property_list if d and p}
+            designator_atom_map = {d[0]: [] for d, _, _ in designator_property_list if d}
+            other_atoms = []
+            for designators, atom, properties in designator_property_list:
+                if designators:
+                    designator_atom_map[designators[0]].append(atom)
+                elif properties:
+                    designator_atom_map[property_designator_map[properties[0]]].append(atom)
                 else:
-                    atom_combinations = combinations(properties_for_one_goal_property, 2)
-                    conjunction_elements = [other_atoms + list(c[0]) + list(c[1]) for c in atom_combinations]
+                    other_atoms.append(atom)
+            for _, atoms_for_one_designator in designator_atom_map.items():
+                get_property_arguments = lambda atom: atom.get_argument_values(Types.DESIGNATOR_PROPERTY)
+                designator_atoms = filter(lambda atom: not get_property_arguments(atom), atoms_for_one_designator)
+                property_atoms = filter(get_property_arguments, atoms_for_one_designator)
+                property_atoms.sort(key = lambda atom: get_property_arguments(atom)[0])
+                property_groups = [list(grp) for _, grp in groupby(property_atoms, lambda a: get_property_arguments(a))]
+                if len(property_groups) == 1:
+                    conjunction_elements = [property_groups[0] + designator_atoms + other_atoms]
+                else:
+                    comb = combinations(property_groups, 2)
+                    conjunction_elements = [other_atoms + designator_atoms + list(c[0]) + list(c[1]) for c in comb]
                 for atoms in conjunction_elements:
                     atoms = [FormulaGroundAtom(atom) for atom in atoms]
                     new_formula = Formula(formula.weight, Conjunction([Conjunction(atoms)]))

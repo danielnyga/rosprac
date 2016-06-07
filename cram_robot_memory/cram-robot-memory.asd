@@ -1,6 +1,9 @@
 (asdf:defsystem cram-robot-memory
   :depends-on (roslisp
-               cram-rosmln)
+               cram-rosmln
+               cram-designators
+               cl-transforms-stamped
+               cl-transforms)
   :components
   ((:module "src"
     :components

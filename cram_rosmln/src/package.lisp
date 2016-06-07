@@ -3,4 +3,4 @@
 (defpackage cram-rosmln 
   (:nicknames :rosmln)
   (:use #:common-lisp #:roslisp)
-  (:export make-simple-config evidence-query))
+  (:export make-simple-config evidence-query split-atom mln-query-failure))

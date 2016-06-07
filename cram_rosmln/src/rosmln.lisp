@@ -19,6 +19,32 @@
          (atomProbPairs (roslisp:with-fields ((evidence (evidence response))) results
                           (map 'list
                                #'(lambda(result) (roslisp:with-fields (atom prob) result `(,prob ,atom)))
-                               evidence)))
-         (sortedPairs (sort atomProbPairs #'> :key #'car)))
-    sortedPairs))
+                               evidence))))
+    (if (null atomProbPairs)
+        (cram-language:fail 'mln-query-failure)
+        atomProbPairs)))
+
+(define-condition mln-query-failure (cram-language:plan-failure) ())
+                   
+(defun split-atom(atom)
+  (let* ((first-parenthesis (position #\( atom))
+         (predicate (subseq atom first-parenthesis))
+         (arguments (subseq atom (+ first-parenthesis 1) (- (length atom) 1))))
+    (labels
+        ((split-recursively(string current-word ret quoted)
+           (if (null string)
+               (cons current-word ret)
+               (case (car string)
+                 (#\" (split-recursively(cdr string) (cons (car string) current-word) ret (not quoted)))
+                 (#\, (if quoted
+                          (split-recursively(cdr string) (cons (car string) current-word) ret quoted)
+                          (split-recursively(cdr string) nil (cons current-word ret) quoted)))
+                 (otherwise (split-recursively(cdr string) (cons (car string) current-word) ret quoted)))))
+         (split-arguments()
+           (map 'list
+                #'(lambda(word) (map 'string #'identity (reverse word)))
+                (reverse (split-recursively (map 'list #'identity arguments) nil nil nil)))))
+      (cons predicate (split-arguments)))))
+                
+         
+             

@@ -1,67 +1,172 @@
 (in-package :cram-robot-memory)
 
-(defun test-completion()
-	(let*((mug (cram-designators:make-designator
-              :object `((:name "mug")))))
-       (print (complete mug))
-       t))
+(defconstant prob-threshold 0.00001)
 
-(defun complete(designator)
-  (labels ((complete-recursively(properties)
-             (let*((config	(cram-rosmln:make-simple-config "learnt_mlns/task_and_designator.mln"
-                                                            :fast-exact
-                                                            :first-order-logic
-                                                            :prac-grammar))
-                   (property-evidence (properties-to-evidence properties 0))
-                   (designator-type (get-designator-type properties))
-                   (dtype (format nil "designatorType(Designator,~S)" designator-type))
-                   (prop-idx (length properties))                       
-                   (prop-atom (format nil "designatorProperty(Prop~D, Designator)" prop-idx))
-                   (other-evidence (cons prop-atom (cons dtype `("success(Task)"))))
-                   (key-evidence (concatenate 'list property-evidence other-evidence))
-                   (key-query (format nil "propertyKey(Prop~D, ?k)" prop-idx))
-                   (key-result (cram-rosmln:evidence-query config key-query key-evidence))
-                   (best-key (get-argument-from-best-result key-result 1))
-                   ;TODO: Avoid duplicate keys + fixed poses...
-                   (best-key-prob (car (car key-result)))
-                   (uniform-key-dist (every #'(lambda(e)(= (car e) best-key-prob)) key-result))
-                   (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx best-key))
-                   (value-evidence (cons best-key-atom key-evidence))
-                   (value-query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
-                   (val-result (cram-rosmln:evidence-query config value-query value-evidence))
-                   (best-val (get-argument-from-best-result val-result 1))
-                   (best-val-prob (car (car val-result)))
-                   (uniform-val-dist (every #'(lambda(e)(= (car e) best-val-prob)) val-result)))               
-               (if (or (< best-key-prob 0.000001)
-                       (< best-val-prob 0.000001)
-                       uniform-key-dist
-                       uniform-val-dist)
-                   properties
-                   (complete-recursively (cons `(,best-key,best-val) properties))))))
-    (get-designator (complete-recursively (get-designator-properties designator "")))))
+(define-condition invalid-designator-failure (cram-language:plan-failure) ())
 
+(defun with-completed-designator(do-sth-with designator &optional task goal-ctxt goal-parm) 
+  (let*((use-simplified-mln (and (null task) (null goal-ctxt) (null goal-parm)))
+        (config (cram-rosmln:make-simple-config (if use-simplified-mln
+                                                    "learnt_mlns/designator.mln"
+                                                    "learnt_mlns/task_and_designator.mln")
+                                                :fast-exact
+                                                :first-order-logic
+                                                :prac-grammar))
+        (properties (get-designator-properties designator ""))
+        (desig-type (get-designator-type designator))
+        (evidence (convert-to-evidence properties desig-type
+                                       (not use-simplified-mln) task goal-ctxt goal-parm)))
+    (complete-key config properties evidence nil do-sth-with)))
+
+(defun test-completion() ;This is just for testing purposes - it can be removed...
+	(let*((mug (cram-designators:make-designator :object `((:name "mug")))))
+    (print (with-completed-designator #'identity mug)); 'achieve "OBJECT-IN-HAND ?OBJ"))
+    t))
+
+(defun complete-key(conf desig-props property-evidence seen-keys target-func)
+  (let*((prop-idx (length desig-props))
+        (prop-atom (format nil "designatorProperty(Prop~D, Designator)" prop-idx))
+        (evidence (cons prop-atom property-evidence))
+        (query (format nil "propertyKey(Prop~D, ?k)" prop-idx))
+        (result (cram-rosmln:evidence-query conf query evidence)))
+    (complete-key-rec conf desig-props evidence seen-keys target-func result)))
+
+(defun complete-key-rec(conf desig-props evidence seen-keys target-func results)
+  (let*((best-key (get-argument-from-best-result results 1))
+        (best-prob (car (car results)))
+        (uniform-key-dist (every #'(lambda(e)(= (car e) best-prob)) results)))
+    (cond ((or (< best-prob 0.00001) uniform-key-dist)
+           (funcall target-func (get-designator desig-props)))
+          ((member-if #'(lambda(x) (equal x best-key)) seen-keys)
+           (complete-key-rec conf desig-props evidence seen-keys target-func (cdr results)))
+          (t
+           (cram-language:with-failure-handling
+               ((invalid-designator-failure (f)
+                  (declare (ignore f))
+                  (return (complete-key-rec; This error is most likely a <hardcoded pose> => update seen
+                   conf desig-props evidence (cons best-key seen-keys)
+                   target-func (cdr results)))))
+             (complete-value conf desig-props evidence seen-keys target-func best-key))))))
+
+(defun complete-value(conf desig-props key-evidence seen-keys target-func key)
+  (let*((prop-idx (length desig-props))
+        (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx key))
+        (evidence (cons best-key-atom key-evidence))
+        (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
+        (result (cram-rosmln:evidence-query conf query evidence))
+        (second-best-prob (car (car (cdr result))))
+        (seen-upd (if (< second-best-prob prob-threshold) (cons key seen-keys) seen-keys)))
+    (complete-val-rec conf desig-props evidence seen-upd target-func result key))) 
+
+(defun complete-val-rec(conf desig-props evidence seen-keys target-func results key)
+  (let*((best-val (get-argument-from-best-result results 1))
+        (prop-idx (length desig-props))
+        (best-prob (car (car results)))
+        (uniform-val-dist (every #'(lambda(e)(= (car e) best-prob)) results))
+        (kv-pair `(,key ,best-val))
+        (updated-props (cons kv-pair desig-props))
+        (updated-ev (cons (format nil "propertyValue(Prop~D,~S)" prop-idx best-val) evidence)))
+    (cond ((or (< best-prob prob-threshold) uniform-val-dist)
+           (funcall target-func (get-designator desig-props)))
+          ((member-if #'(lambda(x) (equal x kv-pair)) desig-props)
+           (complete-val-rec conf desig-props evidence seen-keys target-func (cdr results) key))
+          ((equal best-val "<hard coded pose>")
+           (cram-language:fail 'invalid-designator-failure))
+          (t
+           (cram-language:with-failure-handling
+               ((invalid-designator-failure (f)
+                  (declare (ignore f))
+                  (complete-val-rec
+                   conf desig-props evidence seen-keys target-func (cdr results) key)))
+           (complete-key conf updated-props updated-ev (cons key seen-keys) target-func))))))
+    
 (defun get-designator-type(designator)
-  "object"
-  ;TODO
-)
+  (let* ((class-name (symbol-name (type-of designator)))
+         (designator-name (subseq class-name 0 (search "-DESIGNATOR" class-name))))
+    (string-downcase designator-name)))
 
 (defun get-designator(designator-properties)
-        
-  ;TODO
-)
+  (labels((split-recursively(rest to-return)
+            (let((pos (search "::" rest)))
+              (if (null pos)
+                  (concatenate 'list to-return `(,rest))
+                  (split-recursively (subseq rest (+ pos 2))
+                                     (concatenate 'list to-return `(,(subseq rest 0 pos)))))))
+          (split-keys(properties)
+            (map 'list
+                 #'(lambda(kv) (concatenate 'list (split-recursively (car kv) nil) (cdr kv)))
+                 properties))
+          (group-recursively(rest current-key current-list return-list)
+            (let*((pair (car rest))
+                  (key (car pair))
+                  (key-part (car key))
+                  (value (car (last pair)))
+                  (rest-pair `(,(cdr key) ,value)))
+              (cond ((null pair) (cons `(,current-key ,(make-desig-or-val(group current-list))) return-list))     
+                    ((null key-part) value)
+                    ((not (equal key-part current-key))
+                     (group-recursively (cdr rest) key-part `(,rest-pair)
+                                        (cons `(,current-key ,(make-desig-or-val (group current-list))) return-list)))
+                    (t (group-recursively (cdr rest) key-part (cons rest-pair current-list) return-list)))))
+          (group(splitted-desig-list)
+            (let ((sorted (sort splitted-desig-list #'string-lessp :key #'(lambda(x) (car (car x))))))
+              (group-recursively sorted (car (car (car sorted))) nil nil)))
+          (make-desig-or-val(kv-pairs-or-value)
+            (if (not (typep kv-pairs-or-value 'string))
+                (make-designator kv-pairs-or-value)
+                (let ((pose (string-to-pose kv-pairs-or-value)))
+                  (if (null pose) kv-pairs-or-value pose))))
+          (make-designator(kv-pairs)
+            (print (format nil "make designator from ~a" kv-pairs))
+            (print "F***: What kind of designator should I craeate?!")
+            kv-pairs
+          ))
+    (make-desig-or-val (group (split-keys designator-properties)))))
 
-(defun properties-to-evidence(designator-properties start-property-index)
-  (flatten-list
-   (enumerate-and-map-list
-    designator-properties
-    start-property-index
-    #'(lambda(index key-value-pair)
-        (let* ((key (car key-value-pair))
-               (value (car (last key-value-pair)))
-               (propertyAtom (format nil "designatorProperty(Prop~D,Designator)" index))
-               (keyAtom (format nil "propertyKey(Prop~D,~S)" index key))
-               (valueAtom (format nil "propertyValue(Prop~D,~S)" index value)))
-          `(,propertyAtom ,keyAtom ,valueAtom)))) nil))
+(defun convert-to-evidence(properties designator-type include-task-info
+                              &optional task goal-context goal-param )
+  (concatenate 'list
+               (properties-to-evidence properties designator-type "Designator"
+                                             (if include-task-info "Task" nil)
+                                             goal-param)
+               (if include-task-info 
+                   (task-information-to-evidence "Task" t
+                                                 (if (null task) nil
+                                                     (symbol-name task))
+                                                 goal-context)
+                   nil)))
+
+(defun properties-to-evidence(properties designator-type desig-id
+                              &optional task-id goal-param)
+  (concatenate
+   'list
+   (flatten-list
+    (enumerate-and-map-list
+     properties
+     0
+     #'(lambda(index key-value-pair)
+         (let* ((key (car key-value-pair))
+                (value (car (last key-value-pair)))
+                (propAtom (format nil "designatorProperty(Prop~D,~a)" index desig-id))
+                (keyAtom (format nil "propertyKey(Prop~D,~S)" index key))
+                (valueAtom (format nil "propertyValue(Prop~D,~S)" index value)))
+           `(,propAtom ,keyAtom ,valueAtom)))) nil)
+   `(,(format nil "designatorType(~a,~S)" desig-id designator-type))
+   (if (null task-id) nil `(,(format nil "goalParameter(~a,~a)" desig-id task-id)))
+   (if (null goal-param)
+       nil
+       `(,(format nil "goalParameterKey(~a,~S)" desig-id goal-param))))) 
+
+(defun task-information-to-evidence(task-id success &optional task-name goal-context)
+  (concatenate
+   'list
+   (if success `(, (format nil "success(~a)" task-id)) nil)
+   (if (null task-name) nil `(,(format nil "name(~a,~S)" task-id task-name)))
+   (if (null goal-context)
+       nil
+       `(,(format nil "goalPattern(~a,~S)" task-id
+                 (if (equal goal-context "") " " goal-context)))))) 
+
 
 (defun get-designator-properties(designator prefix)
   (flatten-list
@@ -110,23 +215,46 @@
            (format nil "(~a,~,3f,~,3f,~,3f,~,3f,~,3f,~,3f,~,3f)"
                    frame pos-x pos-y pos-z or-w or-x or-y or-z))))
 
+(defun string-to-pose(pose-string);Unfortunately, lisp has no built-in support for regex...
+  (labels((parse(str current-word to-return)
+            (cond ((null str) (reverse (cons current-word to-return)))
+                  ((equal (car str) #\,) (parse (cdr str) nil (cons current-word to-return)))
+                  (t (parse (cdr str) (cons (car str) current-word) to-return)))))
+    (let*((parts (if (and (equal (char pose-string 0) #\()
+                          (equal (char pose-string (- (length pose-string) 1)) #\)))
+                     (parse (map 'list #'identity
+                                 (subseq pose-string 1 (- (length pose-string) 1))) nil nil)
+                     nil))
+          (str-parts (map 'list #'(lambda(e) (map 'string #'identity (reverse e))) parts))
+          (pose (case (length str-parts) 
+                  (7 str-parts)
+                  (8 (subseq str-parts 1))
+                  (otherwise nil)))
+          (floats (map 'list #'(lambda(s) (with-input-from-string (i s) (read i))) pose))
+          ;TODO: The previous line is a potential security hole...
+          (list-is-pose (and (= (length floats) 7)
+                             (every #'(lambda(e) (typep e 'float)) floats)))
+          (is-pose (and list-is-pose (= (length str-parts) 7)))
+          (is-pose-stamped (and list-is-pose
+                                (= (length str-parts) 8)
+                                (typep (car str-parts) 'string)))
+          (position (if (not list-is-pose) nil (cl-transforms:make-3d-vector (nth 0 floats)
+                                                               (nth 1 floats)(nth 2 floats))))
+          (orientation (if (not list-is-pose) nil
+                           (cl-transforms:normalize (cl-transforms:make-quaternion
+                                                     (nth 4 floats) (nth 5 floats)
+                                                     (nth 6 floats) (nth 3 floats))))))
+      (cond (is-pose (cl-transforms:make-pose position orientation))
+            (is-pose-stamped (cl-transforms-stamped:make-pose-stamped
+                              (car str-parts)
+                              0.0
+                              position
+                              orientation))
+            (t nil)))))
+                                                                      
 (defun get-argument-from-best-result(results argument-index)
   (let*((best-result (cram-rosmln:split-atom (car (last (car results)))))
         (argument (nth (+ 1 argument-index) best-result)))
     (if (> (length argument) 2)
         (subseq argument 1 (- (length argument) 1))
         "")))
-
-(defun complete3()
-  (let*((config	(cram-rosmln:make-simple-config "learnt_mlns/task_and_designator.mln"
-                                                :fast-exact
-                                                :first-order-logic
-                                                :prac-grammar))
-        (query "propertyKey(OtherProp, ?k)")
-        (evidence '("success(Task)"
-                    "designatorType(Designator, \"object\")"
-                    "propertyKey(NameProp,\"NAME\")"
-                    "propertyValue(NameProp, \"mug\")"
-                    "designatorProperty(NameProp, Designator)"
-                    "designatorProperty(OtherProp, Designator)")))
-        (cram-rosmln:evidence-query config query evidence)))

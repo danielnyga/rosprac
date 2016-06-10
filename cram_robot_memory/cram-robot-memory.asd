@@ -2,6 +2,7 @@
   :depends-on (roslisp
                cram-rosmln
                cram-designators
+               cram-language
                cl-transforms-stamped
                cl-transforms)
   :components

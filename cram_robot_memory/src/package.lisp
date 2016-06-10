@@ -3,4 +3,4 @@
 (defpackage cram-robot-memory
   (:nicknames :crm)
   (:use #:common-lisp #:roslisp)
-  (:export complete))
+  (:export with-completed-designator invalid-designator-failure))

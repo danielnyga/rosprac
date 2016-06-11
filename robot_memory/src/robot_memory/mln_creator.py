@@ -37,7 +37,7 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
 def _create_task_and_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK_AND_DESIGNATOR)
     necessary_predicates = [Predicates.TASK_NAME]
-    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE,
+    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.DESIGNATOR_PROPERTY,
                            Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE,
                            Predicates.GOAL_PATTERN, Predicates.TASK_NAME, Predicates.GOAL_PARAMETER,
                            Predicates.GOAL_PARAMETER_KEY]
@@ -52,8 +52,8 @@ def _create_task_and_designator_mln(databases):
 
 def _create_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.DESIGNATOR)
-    necessary_predicates = [Predicates.DESIGNATOR_TYPE, Predicates.TASK_SUCCESS]
-    optional_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.DESIGNATOR_TYPE, Predicates.TASK_SUCCESS,
+    necessary_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_SUCCESS]
+    optional_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_SUCCESS,
                            Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
     formulas = _split_different_designators(formulas)
@@ -217,9 +217,14 @@ def _split_different_designators(formulas):
                 property_atoms.sort(key = lambda atom: get_property_arguments(atom)[0])
                 property_groups = [list(grp) for _, grp in groupby(property_atoms, lambda a: get_property_arguments(a))]
                 if len(property_groups) == 1:
-                    conjunction_elements = [property_groups[0] + designator_atoms + other_atoms]
+                    conjunction_elements = [] #TODO: Support that somehow...i.e. use a negated existential quantifier
                 else:
-                    comb = combinations(property_groups, 2)
+                    def escape(combination):
+                        new_combination = [FormulaGroundAtom(a) for a in combination]
+                        for a in new_combination:
+                            a.set_argument_value(Types.DESIGNATOR_PROPERTY, 0, "Foo")
+                        return new_combination
+                    comb = filter(lambda c: escape(c[0]) != escape(c[1]), combinations(property_groups, 2))
                     conjunction_elements = [other_atoms + designator_atoms + list(c[0]) + list(c[1]) for c in comb]
                 for atoms in conjunction_elements:
                     atoms = [FormulaGroundAtom(atom) for atom in atoms]

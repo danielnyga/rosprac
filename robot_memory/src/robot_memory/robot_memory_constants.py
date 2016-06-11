@@ -7,7 +7,6 @@ class Types(object):
     GOAL_PATTERN = Type("goalPattern")
     GOAL_PARAMETER_KEY = Type("goalParameter")
     DESIGNATOR = Type("designator")
-    DESIGNATOR_TYPE = Type("designatorType")
     DESIGNATOR_PROPERTY = Type("designatorProperty")
     DESIGNATOR_PROPERTY_KEY = Type("designatorPropertyKey")
     DESIGNATOR_PROPERTY_VALUE = Type("designatorPropertyValue")
@@ -22,7 +21,6 @@ class Predicates(object):
     DESIGNATOR_PROPERTY = Predicate("designatorProperty", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR)
     DESIGNATOR_PROPERTY_KEY = Predicate("propertyKey", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_PROPERTY_KEY)
     DESIGNATOR_PROPERTY_VALUE = Predicate("propertyValue", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_PROPERTY_VALUE)
-    DESIGNATOR_TYPE = Predicate("designatorType", Types.DESIGNATOR, +Types.DESIGNATOR_TYPE)
 
     @staticmethod
     def get_all_predicates():

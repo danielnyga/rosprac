@@ -13,14 +13,13 @@
                                                 :first-order-logic
                                                 :prac-grammar))
         (properties (get-designator-properties designator ""))
-        (desig-type (get-designator-type designator))
-        (evidence (convert-to-evidence properties desig-type
+        (evidence (convert-to-evidence properties
                                        (not use-simplified-mln) task goal-ctxt goal-parm)))
     (complete-key config properties evidence nil do-sth-with)))
 
 (defun test-completion() ;This is just for testing purposes - it can be removed...
 	(let*((mug (cram-designators:make-designator :object `((:name "mug")))))
-    (print (with-completed-designator #'identity mug)); 'achieve "OBJECT-IN-HAND ?OBJ"))
+    (print (with-completed-designator #'identity mug 'achieve "OBJECT-IN-HAND ?OBJ"))
     t))
 
 (defun complete-key(conf desig-props property-evidence seen-keys target-func)
@@ -86,15 +85,16 @@
     (string-downcase designator-name)))
 
 (defun get-designator(designator-properties)
-  (labels((split-recursively(rest to-return)
-            (let((pos (search "::" rest)))
+  (labels((split-recursively(rest pattern to-return)
+            (let((pos (search pattern rest)))
               (if (null pos)
                   (concatenate 'list to-return `(,rest))
-                  (split-recursively (subseq rest (+ pos 2))
+                  (split-recursively (subseq rest (+ pos (length pattern)))
+                                     pattern
                                      (concatenate 'list to-return `(,(subseq rest 0 pos)))))))
           (split-keys(properties)
             (map 'list
-                 #'(lambda(kv) (concatenate 'list (split-recursively (car kv) nil) (cdr kv)))
+                 #'(lambda(kv) (cons (split-recursively (car kv) "::" nil) (cdr kv)))
                  properties))
           (group-recursively(rest current-key current-list return-list)
             (let*((pair (car rest))
@@ -102,31 +102,38 @@
                   (key-part (car key))
                   (value (car (last pair)))
                   (rest-pair `(,(cdr key) ,value)))
-              (cond ((null pair) (cons `(,current-key ,(make-desig-or-val(group current-list))) return-list))     
+              (cond ((null pair) (cons `(,current-key ,(make-desig-or-val(group current-list)))
+                                       return-list))     
                     ((null key-part) value)
                     ((not (equal key-part current-key))
                      (group-recursively (cdr rest) key-part `(,rest-pair)
-                                        (cons `(,current-key ,(make-desig-or-val (group current-list))) return-list)))
-                    (t (group-recursively (cdr rest) key-part (cons rest-pair current-list) return-list)))))
+                                        (cons `(,current-key ,
+                                                (make-desig-or-val (group current-list)))
+                                              return-list)))
+                    (t (group-recursively (cdr rest) key-part
+                                          (cons rest-pair current-list) return-list)))))
           (group(splitted-desig-list)
-            (let ((sorted (sort splitted-desig-list #'string-lessp :key #'(lambda(x) (car (car x))))))
+            (let ((sorted (sort splitted-desig-list
+                                #'string-lessp :key #'(lambda(x) (car (car x))))))
               (group-recursively sorted (car (car (car sorted))) nil nil)))
           (make-desig-or-val(kv-pairs-or-value)
             (if (not (typep kv-pairs-or-value 'string))
                 (make-designator kv-pairs-or-value)
                 (let ((pose (string-to-pose kv-pairs-or-value)))
                   (if (null pose) kv-pairs-or-value pose))))
-          (make-designator(kv-pairs)
-            (print (format nil "make designator from ~a" kv-pairs))
-            (print "F***: What kind of designator should I craeate?!")
-            kv-pairs
-          ))
+          (remove-desig-type-convert-to-keywd(kv)
+            (cons (to-keyword (car (cdr (split-recursively (car kv) "." nil)))) (cdr kv)))
+          (make-designator(key-value-pairs)
+            (let*((desig-type (car (split-recursively (car (car key-value-pairs)) "." nil)))
+                  (kv-pairs (map 'list #'remove-desig-type-convert-to-keywd key-value-pairs)))
+              (cram-designators:make-designator (to-keyword desig-type) kv-pairs)))
+          (to-keyword(str) (symbol-value (intern (string-upcase str) "KEYWORD"))))
     (make-desig-or-val (group (split-keys designator-properties)))))
 
-(defun convert-to-evidence(properties designator-type include-task-info
+(defun convert-to-evidence(properties include-task-info
                               &optional task goal-context goal-param )
   (concatenate 'list
-               (properties-to-evidence properties designator-type "Designator"
+               (properties-to-evidence properties "Designator"
                                              (if include-task-info "Task" nil)
                                              goal-param)
                (if include-task-info 
@@ -136,7 +143,7 @@
                                                  goal-context)
                    nil)))
 
-(defun properties-to-evidence(properties designator-type desig-id
+(defun properties-to-evidence(properties desig-id
                               &optional task-id goal-param)
   (concatenate
    'list
@@ -151,7 +158,6 @@
                 (keyAtom (format nil "propertyKey(Prop~D,~S)" index key))
                 (valueAtom (format nil "propertyValue(Prop~D,~S)" index value)))
            `(,propAtom ,keyAtom ,valueAtom)))) nil)
-   `(,(format nil "designatorType(~a,~S)" desig-id designator-type))
    (if (null task-id) nil `(,(format nil "goalParameter(~a,~a)" desig-id task-id)))
    (if (null goal-param)
        nil
@@ -173,9 +179,10 @@
    (map 'list
         (lambda(element)
           (let* ((key-suffix (symbol-name (car element)))
+                 (desig-type (get-designator-type designator))
                  (key (if (= (length prefix) 0)
-                          key-suffix
-                          (format nil "~a::~a" prefix key-suffix)))
+                          (format nil "~a.~a" desig-type key-suffix)
+                          (format nil "~a.~a::~a" desig-type prefix key-suffix)))
                  (value (car (cdr element))))
             (typecase value
               (symbol (cons `(,key ,(concatenate 'string ":" (symbol-name value))) nil))

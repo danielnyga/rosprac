@@ -7,6 +7,7 @@ project(cram_rosmln)
 find_package(catkin REQUIRED COMPONENTS
   roslisp
   rosmln
+  cram_language
 )
 
 ## System dependencies are found with CMake's conventions

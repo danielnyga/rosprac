@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="rosmln" type="start_mln_server" name="pracmln_robot_memory_server" output="screen"/>
+  <include file="$(find spatial_relations_demo)/launch/demo.launch" />
+</launch>

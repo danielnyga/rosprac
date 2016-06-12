@@ -9,6 +9,6 @@ owl_memory_converter/owl_memory_converter.iml
 owl_memory_converter/tasktree/tasktree.iml
 robot_memory/.idea/
 robot_memory/src/robot_memory/*.pyc
-robot_memory/bin/learnt_mlns/
+robot_memory/bin/learnt_mlns*
 robot_memory/test/*.pyc
 robot_memory/test/learnt_mlns/

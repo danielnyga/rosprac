@@ -1,17 +1,33 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(cram_robot_memory)
+project(cram_robot_memory_demo)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  cram_rosmln
   roslisp
+  cram_robot_memory
+  cram_spatial_relations_costmap
+  cl_urdf
   cram_designators
-  cram_language
-  cl_transforms_stamped
-  cl_transforms
-)
+  cram_location_costmap
+  cram_prolog
+  roslisp
+  roslisp_utilities
+  cram_semantic_map_costmap
+  cram_semantic_map_utils
+  cram_robot_pose_gaussian_costmap
+  cram_bullet_reasoning
+  cram_pr2_description
+  cram_bullet_reasoning_belief_state
+  cram_pr2_synch_projection_pms
+  cram_occupancy_grid_costmap
+  cram_plan_library
+  cram_bullet_reasoning_designators
+  cram_pr2_designators
+  cram_semantic_map_designators
+  cram_bullet_reasoning_utilities
+  )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -104,8 +120,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES cram_robot_memory
-#  CATKIN_DEPENDS cram_rosmln roslisp
+#  LIBRARIES cram_robot_memory_demo
+#  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
 
@@ -116,29 +132,26 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
 
 ## Declare a C++ library
-# add_library(cram_robot_memory
-#   src/${PROJECT_NAME}/cram_robot_memory.cpp
+# add_library(cram_robot_memory_demo
+#   src/${PROJECT_NAME}/cram_robot_memory_demo.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(cram_robot_memory ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(cram_robot_memory_demo ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(cram_robot_memory_node src/cram_robot_memory_node.cpp)
+# add_executable(cram_robot_memory_demo_node src/cram_robot_memory_demo_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(cram_robot_memory_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(cram_robot_memory_demo_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(cram_robot_memory_node
+# target_link_libraries(cram_robot_memory_demo_node
 #   ${catkin_LIBRARIES}
 # )
 
@@ -157,7 +170,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS cram_robot_memory cram_robot_memory_node
+# install(TARGETS cram_robot_memory_demo cram_robot_memory_demo_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -182,7 +195,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_cram_robot_memory.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_cram_robot_memory_demo.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

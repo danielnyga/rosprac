@@ -1,14 +1,13 @@
 <?xml version="1.0"?>
-<package>
+<package format="2">
   <name>cram_rosmln</name>
   <version>0.0.1</version>
-  <description>The cram_rosmln package</description>
+  <description>Lisp wrapper for the rosmln interface of pracmln</description>
   <maintainer email="mniehaus@informatik.uni-bremen.de">Marc Niehaus</maintainer>
   <license>BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>roslisp</build_depend>
-  <build_depend>rosmln</build_depend>
-  <run_depend>roslisp</run_depend>
-  <run_depend>rosmln</run_depend>
+  <depend>roslisp</depend>
+  <depend>rosmln</depend>
+  <depend>cram_language</depend>
   <export></export>
 </package>

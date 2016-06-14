@@ -20,6 +20,8 @@
                           (map 'list
                                #'(lambda(result) (roslisp:with-fields (atom prob) result `(,prob ,atom)))
                                evidence))))
+    (print query)
+    (print evidence)
     (if (null atomProbPairs)
         (cram-language:fail 'mln-query-failure)
         atomProbPairs)))

@@ -1,11 +1,11 @@
 (asdf:defsystem cram-robot-memory-demo
   :depends-on (roslisp
-               cram-rosmln
+               cram-robot-memory
                cram-designators
                cram-language
                cl-transforms-stamped
                cl-transforms
-	       cram-spatial-relations-costmap
+               cram-spatial-relations-costmap
                cl-urdf
                cram-location-costmap
                cram-prolog

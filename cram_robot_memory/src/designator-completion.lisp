@@ -15,69 +15,93 @@
         (properties (get-designator-properties designator ""))
         (evidence (convert-to-evidence properties
                                        (not use-simplified-mln) task goal-ctxt goal-parm)))
-    (complete-key config properties evidence nil do-sth-with)))
+    (roslisp:ros-info (cram-robot-memory) "completing designator ~a..." designator)
+    (car (complete-key config properties evidence nil nil do-sth-with))))
 
 (defun test-completion() ;This is just for testing purposes - it can be removed...
 	(let*((mug (cram-designators:make-designator :object `((:name "mug")))))
-    (print (with-completed-designator #'identity mug 'achieve "OBJECT-IN-HAND ?OBJ"))
+    (print (with-completed-designator #'(lambda(x) (declare (ignore x)) nil) mug)); 'achieve "OBJECT-IN-HAND ?OBJ"))
     t))
 
-(defun complete-key(conf desig-props property-evidence seen-keys target-func)
+(defun complete-key(conf desig-props property-evidence seen-keys tried-props target-func)
   (let*((prop-idx (length desig-props))
         (prop-atom (format nil "designatorProperty(Prop~D, Designator)" prop-idx))
         (evidence (cons prop-atom property-evidence))
         (query (format nil "propertyKey(Prop~D, ?k)" prop-idx))
         (result (cram-rosmln:evidence-query conf query evidence)))
-    (complete-key-rec conf desig-props evidence seen-keys target-func result)))
+    (complete-key-rec conf desig-props evidence seen-keys tried-props target-func result nil)))
 
-(defun complete-key-rec(conf desig-props evidence seen-keys target-func results)
+(defun complete-key-rec(conf desig-props evidence seen-keys tried-props
+                        target-func results called)
   (let*((best-key (get-argument-from-best-result results 1))
         (best-prob (car (car results)))
-        (uniform-key-dist (every #'(lambda(e)(= (car e) best-prob)) results)))
-    (cond ((or (< best-prob 0.00001) uniform-key-dist)
-           (funcall target-func (get-designator desig-props)))
+        (uniform-key-dist (every #'(lambda(e)(= (car e) best-prob)) results))
+        (no-more-keys (or (< best-prob prob-threshold) uniform-key-dist)))
+    (cond ((and no-more-keys called)
+           `(nil ,tried-props nil))
+          (no-more-keys
+           (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
+           `(,(funcall target-func (get-designator desig-props))
+             ,(cons desig-props tried-props)
+             nil))
           ((member-if #'(lambda(x) (equal x best-key)) seen-keys)
-           (complete-key-rec conf desig-props evidence seen-keys target-func (cdr results)))
+           (complete-key-rec conf desig-props evidence seen-keys
+                             tried-props target-func (cdr results) called))
           (t
-           (cram-language:with-failure-handling
-               ((invalid-designator-failure (f)
-                  (declare (ignore f))
-                  (return (complete-key-rec; This error is most likely a <hardcoded pose> => update seen
-                   conf desig-props evidence (cons best-key seen-keys)
-                   target-func (cdr results)))))
-             (complete-value conf desig-props evidence seen-keys target-func best-key))))))
+           (recurse-if-car-null (complete-value conf desig-props evidence
+                                                seen-keys tried-props target-func best-key)
+                                #'(lambda(result)
+                                    (if (car (last result)) ;retuned from a direct call
+                                        `(,(nth 0 result) ,(nth 1 result) nil)
+                                        (complete-key-rec conf desig-props evidence seen-keys
+                                                          (car (cdr result))
+                                                          target-func (cdr results) t))))))))
 
-(defun complete-value(conf desig-props key-evidence seen-keys target-func key)
-  (let*((prop-idx (length desig-props))
-        (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx key))
-        (evidence (cons best-key-atom key-evidence))
-        (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
-        (result (cram-rosmln:evidence-query conf query evidence))
-        (second-best-prob (car (car (cdr result))))
-        (seen-upd (if (< second-best-prob prob-threshold) (cons key seen-keys) seen-keys)))
-    (complete-val-rec conf desig-props evidence seen-upd target-func result key))) 
+(defun complete-value(conf desig-props key-evidence seen-keys tried-props target-func key)
+  (let*((tries (remove-if (lambda(w) (not (subsetp desig-props w :test #'equal))) tried-props))
+        (already-tried(some #'(lambda (w) (some #'(lambda (kv) (equal (car kv) key)) w)) tries)))
+    (if already-tried
+        `(nil ,tried-props nil)
+        (let*((prop-idx (length desig-props))
+              (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx key))
+              (evidence (cons best-key-atom key-evidence))
+              (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
+              (result (cram-rosmln:evidence-query conf query evidence))
+              (second-best-prob (car (car (cdr result))))
+              (seen-upd (if (< second-best-prob prob-threshold) (cons key seen-keys) seen-keys)))
+          (complete-val-rec conf desig-props evidence seen-upd
+                            tried-props target-func result key nil)))))
 
-(defun complete-val-rec(conf desig-props evidence seen-keys target-func results key)
+(defun complete-val-rec(conf desig-props evidence seen-keys
+                        tried-props target-func results key called)
   (let*((best-val (get-argument-from-best-result results 1))
         (prop-idx (length desig-props))
         (best-prob (car (car results)))
         (uniform-val-dist (every #'(lambda(e)(= (car e) best-prob)) results))
         (kv-pair `(,key ,best-val))
         (updated-props (cons kv-pair desig-props))
-        (updated-ev (cons (format nil "propertyValue(Prop~D,~S)" prop-idx best-val) evidence)))
-    (cond ((or (< best-prob prob-threshold) uniform-val-dist)
-           (funcall target-func (get-designator desig-props)))
+        (updated-ev (cons (format nil "propertyValue(Prop~D,~S)" prop-idx best-val) evidence))
+        (no-more-values (or (< best-prob prob-threshold) uniform-val-dist)))
+    (cond ((and no-more-values called)
+           `(nil ,tried-props nil))
+          (no-more-values
+           (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
+           `(,(funcall target-func (get-designator desig-props))
+             ,(cons desig-props tried-props)
+             t))
           ((member-if #'(lambda(x) (equal x kv-pair)) desig-props)
-           (complete-val-rec conf desig-props evidence seen-keys target-func (cdr results) key))
+           (complete-val-rec conf desig-props evidence seen-keys
+                             tried-props target-func (cdr results) key called))
           ((equal best-val "<hard coded pose>")
-           (cram-language:fail 'invalid-designator-failure))
+           `(nil ,tried-props nil))
           (t
-           (cram-language:with-failure-handling
-               ((invalid-designator-failure (f)
-                  (declare (ignore f))
-                  (complete-val-rec
-                   conf desig-props evidence seen-keys target-func (cdr results) key)))
-           (complete-key conf updated-props updated-ev (cons key seen-keys) target-func))))))
+           (roslisp:ros-info (cram-robot-memory) "updated: ~a" updated-props)
+           (recurse-if-car-null (complete-key conf updated-props updated-ev
+                                              (cons key seen-keys) tried-props target-func)
+                                #'(lambda(result)
+                                    (complete-val-rec conf desig-props evidence seen-keys
+                                                      (car (cdr result))
+                                                      target-func (cdr results) key t)))))))
     
 (defun get-designator-type(designator)
   (let* ((class-name (symbol-name (type-of designator)))
@@ -265,3 +289,8 @@
     (if (> (length argument) 2)
         (subseq argument 1 (- (length argument) 1))
         "")))
+
+(defun recurse-if-car-null(result recursion-function)
+  (if (null (car result))
+      (funcall recursion-function result)
+      result))

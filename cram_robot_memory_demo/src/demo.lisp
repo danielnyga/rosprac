@@ -1,29 +1,56 @@
 (in-package :cram-robot-memory-demo)
 
 (defun execute-demo()
+  (create-training-data)
+  (execute-test))
+
+(defun create-training-data()
+  (roslisp-utilities::startup-ros)
+  (cram-robot-memory:start-learning)
+  (init-kitchen-and-pr2-in-bullet)
+  (spawn-object-in-bullet :mug-1 :mug 0.2 '((-0.9 -0.7 0.8) (0 0 0 1)))
+  (spawn-object-in-bullet :mug-2 :mug 0.2 '((1.5 0.9 0.9) (0 0 0 1)))
+  (execute-in-simulation #'(lambda() (perceive-mug-at-location
+                                      "CounterTop" "kitchen_sink_block_counter_top")))
+  (execute-in-simulation #'(lambda() (perceive-mug-at-location
+                                      "CounterTop" "kitchen_sink_block_counter_top")))
+  (execute-in-simulation #'(lambda() (perceive-mug-at-location
+                                      "Cupboard" "pancake_table")))
+  (cram-robot-memory:complete-learning)
+  (roslisp-utilities::shutdown-ros))
+
+(defun execute-test()
   (roslisp-utilities::startup-ros)
   (init-kitchen-and-pr2-in-bullet)
-  (spawn-objects-in-bullet)
+  (spawn-object-in-bullet :mug-3 :mug 0.2 '((-0.9 -0.7 0.8) (0 0 0 1)))
   (execute-in-simulation #'get-mug)
   (roslisp-utilities::shutdown-ros))
 
+(cram-language:def-top-level-cram-function perceive-mug-at-location(location-on location-name)
+  (cram-plan-library:perceive-object
+   'cram-plan-library:a
+   (cram-designators:make-designator
+       :object `((:type :mug)
+                 (:at ,(cram-designators:make-designator
+                        :location `((:on ,location-on)
+                                    (:name ,location-name))))))))
+
 (cram-language:def-top-level-cram-function get-mug()
   (cram-robot-memory:with-completed-designator
-      (lambda(d)
+      #'(lambda(d)
         (cram-language:with-failure-handling
-            ((condition(e)
-               (declare (ignore e))
+            ((cram-plan-failures:object-not-found (e)
+               (roslisp:ros-info (cram-robot-memory-demo)
+                                 "encountered an ~a error - retrying..." e)
+               (return nil)))
           (cram-plan-library:perceive-object 'cram-plan-library:a d)
-          (return (cram-plan-library:achieve `(cram-plan-library:object-in-hand ,d)))))
-    (cram-designators:make-designator :object `((:name "mug")))))))
+          (cram-plan-library:achieve `(cram-plan-library:object-in-hand ,d))))
+    (cram-designators:make-designator :object `((:type :mug)))))
 
 (defun execute-in-simulation(function)
   (cram-projection:with-projection-environment
       projection-process-modules::pr2-bullet-projection-environment
       (funcall function)))
-
-(defun spawn-objects-in-bullet()
-  (spawn-object-in-bullet "mug" :mug 0.2 '((1.5 0.4 0.9) (0 0 0 1))))
 
 ;this code is basically copied from the spatial relations demo
 (defun init-kitchen-and-pr2-in-bullet()

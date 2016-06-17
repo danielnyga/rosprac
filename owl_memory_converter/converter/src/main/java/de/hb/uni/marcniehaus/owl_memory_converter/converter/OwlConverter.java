@@ -95,7 +95,9 @@ public class OwlConverter {
             unixTime = Integer.parseInt(timeString.split("_")[1]);
         } else if(timeString.matches(Constants.REGEX_TIME_POINT_MILLISECONDS)) {
             unixTime = Integer.parseInt(timeString.split("_")[1].split("\\.")[0]);
-        } else {
+        } else if(timeString.matches(Constants.REGEX_TIME_POINT_EMPTY)) { //bug...
+	   unixTime = 0;
+	} else {
             throw new Exception("Wrong time format: " + timeString + "!");
         }
         return new Time(unixTime, 0);

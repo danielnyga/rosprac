@@ -11,22 +11,26 @@
                     (grammar) (ecase grammar (:prac-grammar "PRACGrammar") (:standard-grammar "StandardGrammar"))))
 
 (defun evidence-query(config query evidence)
-  (let* ((results (roslisp:call-service "mln_interface" 'rosmln-srv:MLNInterface
-                                        :query (roslisp:make-msg "rosmln/MLNQuery"
-                                                                 (queries) query
-                                                                 (evidence) (map 'vector #'identity evidence))
-                                        :config config))
+  (let* ((service-name "mln_interface")
+         (results
+           (cond
+             ((not (wait-for-service service-name 30))
+              (roslisp:ros-error (cram-rosmln) "timeout while waiting for service ~a!" service-name)
+              (cram-language:fail 'mln-query-failure))
+             (t (roslisp:call-service service-name 'rosmln-srv:MLNInterface
+                                      :query (roslisp:make-msg "rosmln/MLNQuery"
+                                                               (queries) query
+                                                               (evidence) (map 'vector #'identity evidence))
+                                      :config config))))
          (atomProbPairs (roslisp:with-fields ((evidence (evidence response))) results
                           (map 'list
                                #'(lambda(result) (roslisp:with-fields (atom prob) result `(,prob ,atom)))
                                evidence))))
-    (print query)
-    (print evidence)
     (if (null atomProbPairs)
         (cram-language:fail 'mln-query-failure)
         atomProbPairs)))
 
-(define-condition mln-query-failure (cram-language:plan-failure) ())
+(define-condition mln-query-failure (simple-condition) ())
                    
 (defun split-atom(atom)
   (let* ((first-parenthesis (position #\( atom))

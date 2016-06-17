@@ -25,6 +25,8 @@ import java.util.concurrent.Semaphore;
 
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.Task;
 import org.ros.exception.RemoteException;
+import org.ros.exception.ServiceException;
+import org.ros.exception.ServiceNotFoundException;
 import org.ros.internal.loader.CommandLineLoader;
 import org.ros.internal.message.Message;
 import org.ros.internal.node.topic.SubscriberIdentifier;
@@ -35,9 +37,13 @@ import org.ros.node.DefaultNodeMainExecutor;
 import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeMainExecutor;
 import org.ros.node.service.ServiceClient;
+import org.ros.node.service.ServiceResponseBuilder;
 import org.ros.node.service.ServiceResponseListener;
 import org.ros.node.topic.DefaultPublisherListener;
 import org.ros.node.topic.Publisher;
+import owl_memory_converter.Conversion;
+import owl_memory_converter.ConversionRequest;
+import owl_memory_converter.ConversionResponse;
 import task_tree_msgs.LearningTrigger;
 import task_tree_msgs.LearningTriggerRequest;
 import task_tree_msgs.LearningTriggerResponse;
@@ -55,15 +61,15 @@ public class Main extends AbstractNodeMain
      */
     public static void main(String[] args) {
         try {
+            String owlFileName = null;
+            ArrayList<String> extendedArgs = Lists.newArrayList(args);
             if(args.length<1 || !new File(args[args.length-1]).exists()) {
-                System.err.println(
-                        "Usage: rosrun owl_memory_converter converter owlfile");
-                return;
+                System.out.println("Starting OWL memory converter as service...");
+            } else {
+                owlFileName = args[args.length-1];
+                extendedArgs.remove(extendedArgs.size()-1);
             }
             NodeMainExecutor exec = DefaultNodeMainExecutor.newDefault();
-            String owlFileName = args[args.length-1];
-            ArrayList<String> extendedArgs = Lists.newArrayList(args);
-            extendedArgs.remove(extendedArgs.size()-1);
             extendedArgs.add(Main.class.getClass().getName());
             CommandLineLoader loader = new CommandLineLoader(extendedArgs);   
             NodeConfiguration config = loader.build();
@@ -86,50 +92,83 @@ public class Main extends AbstractNodeMain
 
     @Override
     public void onStart(final ConnectedNode connectedNode) {
+        mNode = connectedNode;
         try{
-            mNode = connectedNode;
             initCommunication(connectedNode);
-            OwlConverter converter = new OwlConverter(this);
-            for(Task rootTask : converter.getRootTasks(mOwlFileName)) {
-                try {
-                    mNumberOfPublishedStates = 0;
-                    TriggerResponse tresponse = mStartTrainingTrigger.call(
-                            mStartTrainingTrigger.newMessage());
-                    SynchronousService.throwErrorIfTriggerFailed(
-                            tresponse.getSuccess(), tresponse.getMessage());
-                    converter.convert(rootTask);
-                    LearningTriggerRequest request = mLearnTrigger.newMessage();
-                    connectedNode.getLog().info("Waiting for learner to finish...");
-                    request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
-                    LearningTriggerResponse lresponse = mLearnTrigger.call(request);
-                    SynchronousService.throwErrorIfTriggerFailed(
-                            lresponse.getSuccess(), lresponse.getMessage());
-                } catch (Exception e) {
-                    connectedNode.getLog().error("Caught Exception: " + e.getMessage());
-                    e.printStackTrace(System.err);
-                }
-            }
         } catch(Exception e){
             connectedNode.getLog().error("Caught Exception: " + e.getMessage());
             e.printStackTrace(System.err);
-        } finally {
-            connectedNode.getLog().info("Finished! Closing down...");
             closeCommunication();
         }
+        if(mOwlFileName!=null) {
+            try {
+                startConversion(mOwlFileName);
+            } catch(Exception e) {
+                connectedNode.getLog().error("Caught Exception: " + e.getMessage());
+                e.printStackTrace(System.err);
+            }
+            finally {
+                connectedNode.getLog().info("Finished! Closing down...");
+                closeCommunication();
+            }
+        } else { //TODO: Avoid or enable multiple requests at a time...
+            mNode.newServiceServer(
+                    "owl_memory_converter/convert",
+                    Conversion._TYPE,
+                    new ServiceResponseBuilder<ConversionRequest,
+                            ConversionResponse>() {
+                        @Override
+                        public void build(ConversionRequest request,
+                                          ConversionResponse response)
+                                throws ServiceException {
+                            try {
+                                startConversion(request.getOwlFileName());
+                                response.setSuccess(true);
+                            } catch (Exception e) {
+                                connectedNode.getLog().error(
+                                        "Caught Exception: " + e.getMessage()
+                                );
+                                response.setSuccess(false);
+                            }
+                        }
+                    });
+        }
     }
-    
+
+    private void startConversion(String owlFileName) throws Exception {
+        OwlConverter converter = new OwlConverter(this);
+        for(Task rootTask : converter.getRootTasks(owlFileName)) {
+            try {
+                mNumberOfPublishedStates = 0;
+                TriggerResponse tresponse = mStartTrainingTrigger.call(
+                        mStartTrainingTrigger.newMessage());
+                SynchronousService.throwErrorIfTriggerFailed(
+                        tresponse.getSuccess(), tresponse.getMessage());
+                converter.convert(rootTask);
+                LearningTriggerRequest request = mLearnTrigger.newMessage();
+                mNode.getLog().info("Waiting for learner to finish...");
+                request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
+                LearningTriggerResponse lresponse = mLearnTrigger.call(request);
+                SynchronousService.throwErrorIfTriggerFailed(
+                        lresponse.getSuccess(), lresponse.getMessage());
+            } catch (Exception e) {
+                mNode.getLog().error("Caught Exception: " + e.getMessage());
+                e.printStackTrace(System.err);
+            }
+        }
+    }
+
     private void closeCommunication() {      
         System.exit(0);
     }
     
     private void initCommunication(ConnectedNode node) throws Exception {
-        ServiceClient<TriggerRequest,TriggerResponse> tmpTrigger = 
-                node.newServiceClient(
-                "robot_memory/start_collecting_training_data", 
-                std_srvs.Trigger._TYPE);
+        ServiceClient<TriggerRequest,TriggerResponse> tmpTrigger =
+                waitForService("robot_memory/start_collecting_training_data",
+                               std_srvs.Trigger._TYPE);
         mStartTrainingTrigger = new SynchronousService<>(tmpTrigger);
         ServiceClient<LearningTriggerRequest,LearningTriggerResponse> 
-                tmpLearningTrigger = node.newServiceClient("robot_memory/learn", 
+                tmpLearningTrigger = waitForService("robot_memory/learn",
                 LearningTrigger._TYPE);
         mLearnTrigger = new SynchronousService<>(tmpLearningTrigger);        
         mStatePublisher = node.newPublisher(
@@ -167,6 +206,19 @@ public class Main extends AbstractNodeMain
         mNode.getLog().warn(warning);
     }
 
+    private <T, S> ServiceClient<T, S> waitForService(String serviceName,
+                                                      String serviceType)
+                                                        throws Exception {
+        while(true) {
+            try {
+                return mNode.newServiceClient(serviceName, serviceType);
+            } catch(ServiceNotFoundException e) {
+                mNode.getLog().info("Waiting 1s for service " + serviceName);
+                Thread.sleep(1000);
+            }
+        }
+    }
+
     private static class SynchronousService<Request, Response>{
         
         public SynchronousService(ServiceClient<Request,Response> client) {
@@ -189,7 +241,7 @@ public class Main extends AbstractNodeMain
                 @Override
                 public void onFailure(RemoteException re) {
                     mException = re;
-                    mSemaphore.release();                    
+                    mSemaphore.release();
                 }
             });
             mSemaphore.acquire();

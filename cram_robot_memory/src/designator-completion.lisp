@@ -2,13 +2,11 @@
 
 (defconstant prob-threshold 0.00001)
 
-(define-condition invalid-designator-failure (cram-language:plan-failure) ())
-
 (defun with-completed-designator(do-sth-with designator &optional task goal-ctxt goal-parm) 
   (let*((use-simplified-mln (and (null task) (null goal-ctxt) (null goal-parm)))
         (config (cram-rosmln:make-simple-config (if use-simplified-mln
-                                                    "learnt_mlns/designator.mln"
-                                                    "learnt_mlns/task_and_designator.mln")
+                                                    "../learnt_mlns/designator.mln"
+                                                    "../learnt_mlns/task_and_designator.mln")
                                                 :fast-exact
                                                 :first-order-logic
                                                 :prac-grammar))
@@ -144,7 +142,10 @@
             (if (not (typep kv-pairs-or-value 'string))
                 (make-designator kv-pairs-or-value)
                 (let ((pose (string-to-pose kv-pairs-or-value)))
-                  (if (null pose) kv-pairs-or-value pose))))
+                  (cond ((not (null pose)) pose)
+                        ((every #'identity (map 'list #'upper-case-p kv-pairs-or-value))
+                         (to-keyword kv-pairs-or-value))
+                        (t kv-pairs-or-value)))))
           (remove-desig-type-convert-to-keywd(kv)
             (cons (to-keyword (car (cdr (split-recursively (car kv) "." nil)))) (cdr kv)))
           (make-designator(key-value-pairs)
@@ -209,7 +210,7 @@
                           (format nil "~a.~a::~a" desig-type prefix key-suffix)))
                  (value (car (cdr element))))
             (typecase value
-              (symbol (cons `(,key ,(concatenate 'string ":" (symbol-name value))) nil))
+              (symbol (cons `(,key ,(symbol-name value)) nil))
               (string (cons `(,key ,value) nil))
               (float (cons `(,key ,(format nil "~,3f" value)) nil))
               (cram-designators:designator (get-designator-properties value key))

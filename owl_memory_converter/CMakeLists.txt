@@ -9,7 +9,7 @@ project(owl_memory_converter)
 # Catkin
 ##############################################################################
 
-find_package(catkin REQUIRED rosjava_build_tools)
+find_package(catkin REQUIRED COMPONENTS rosjava_build_tools message_generation)
 
 # Set the gradle targets you want catkin's make to run by default, e.g.
 #   catkin_rosjava_setup(installApp)
@@ -17,7 +17,16 @@ find_package(catkin REQUIRED rosjava_build_tools)
 # add tasks to this for you when you create subprojects.
 catkin_rosjava_setup(installApp publishMavenJavaPublicationToMavenRepository)
 
-catkin_package()
+## Generate services in the 'srv' folder
+add_service_files(
+   FILES
+   Conversion.srv
+)
+
+## Generate added messages and services with any dependencies listed here
+generate_messages()
+
+catkin_package(CATKIN_DEPENDS message_runtime)
 
 ##############################################################################
 # Installation

@@ -11,6 +11,7 @@ public class Constants {
     public final static String PROPERTY_NAME_END_TIME = "endTime";
     public final static String REGEX_TIME_POINT_SECONDS = "timepoint_[0-9]+";
     public final static String REGEX_TIME_POINT_MILLISECONDS = "timepoint_[0-9]+.[0-9]+";
+    public final static String REGEX_TIME_POINT_EMPTY = "timepoint_";
     public final static String PROPERTY_NAME_TASK_SUCCESS = "taskSuccess";
     public final static String PROPERTY_VALUE_TRUE = "true";
     public final static String PROPERTY_NAME_DESIGNATOR_TYPE = "_designator_type";

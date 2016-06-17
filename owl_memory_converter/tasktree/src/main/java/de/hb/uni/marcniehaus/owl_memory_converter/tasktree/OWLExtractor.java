@@ -46,9 +46,15 @@ public class OWLExtractor {
     private OWLExtractor(File owlFile) throws Exception {
         String path = owlFile.getAbsolutePath();
         String[] pathParts = path.split(File.separator);
-        if(pathParts.length<4)
-            throw new Exception("Path must contain at least 4 parts in order to resolve the database name!");
-        String databaseName = pathParts[pathParts.length-4] + "_" + pathParts[pathParts.length-3];
+        if(pathParts.length<3)
+            throw new Exception("Path must contain at least 3 parts in order to resolve the database name!");
+        
+        int offsetToExperiment = 3; // structure: foo_logs/exp-0/episode0/log.owl
+        if(!pathParts[pathParts.length-2].startsWith("episode")) {
+            offsetToExperiment = 2;
+        }
+        String databaseName = pathParts[pathParts.length-offsetToExperiment-1] + "_" + 
+            pathParts[pathParts.length-offsetToExperiment];
         mMongoExtractor = new  MongoExtractor(databaseName);
         OWLOntologyManager manager = new OWLManager().get();
         PriorityCollection<OWLOntologyFactory> factories = manager.getOntologyFactories();

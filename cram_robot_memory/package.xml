@@ -8,5 +8,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>cram_rosmln</depend>
   <depend>roslisp</depend>
+  <depend>owl_memory_converter</depend>
+  <depend>cram_beliefstate</depend>
   <export></export>
 </package>

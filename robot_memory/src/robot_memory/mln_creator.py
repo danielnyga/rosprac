@@ -20,7 +20,7 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
         _create_task_and_designator_mln(dbs),
         _create_designator_mln(dbs)
     ]
-    FILENAME_PREFIX = "learnt_mlns/"
+    FILENAME_PREFIX = "../learnt_mlns/"
     if not os.path.isdir(FILENAME_PREFIX):
         os.mkdir(FILENAME_PREFIX)
     if debug:

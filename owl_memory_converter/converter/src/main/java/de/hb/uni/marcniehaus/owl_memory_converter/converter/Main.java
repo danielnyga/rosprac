@@ -102,7 +102,7 @@ public class Main extends AbstractNodeMain
         }
         if(mOwlFileName!=null) {
             try {
-                startConversion(mOwlFileName);
+                startConversion(mOwlFileName, true);
             } catch(Exception e) {
                 connectedNode.getLog().error("Caught Exception: " + e.getMessage());
                 e.printStackTrace(System.err);
@@ -122,7 +122,8 @@ public class Main extends AbstractNodeMain
                                           ConversionResponse response)
                                 throws ServiceException {
                             try {
-                                startConversion(request.getOwlFileName());
+                                startConversion(request.getOwlFileName(), 
+					request.getExtendOldModel());
                                 response.setSuccess(true);
                             } catch (Exception e) {
                                 connectedNode.getLog().error(
@@ -135,7 +136,8 @@ public class Main extends AbstractNodeMain
         }
     }
 
-    private void startConversion(String owlFileName) throws Exception {
+    private void startConversion(String owlFileName, boolean extendOldModel) 
+    		throws Exception {
         OwlConverter converter = new OwlConverter(this);
         for(Task rootTask : converter.getRootTasks(owlFileName)) {
             try {
@@ -148,6 +150,7 @@ public class Main extends AbstractNodeMain
                 LearningTriggerRequest request = mLearnTrigger.newMessage();
                 mNode.getLog().info("Waiting for learner to finish...");
                 request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
+		request.setExtendOldModel(extendOldModel);
                 LearningTriggerResponse lresponse = mLearnTrigger.call(request);
                 SynchronousService.throwErrorIfTriggerFailed(
                         lresponse.getSuccess(), lresponse.getMessage());

@@ -1,3 +1,4 @@
 string owl_file_name
+bool extend_old_model
 ---
 bool success

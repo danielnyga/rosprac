@@ -6,7 +6,7 @@
   (ros-load:load-system "cram_beliefstate" :cram-beliefstate)
 )
 
-(defun complete-learning()
+(defun complete-learning(extend-old-models)
   (funcall (find-symbol "EXTRACT-OWL-FILE" "BELIEFSTATE") "log.owl")
   (let ((convert-service-name "owl_memory_converter/convert"))
     (cond  ((not (wait-for-service convert-service-name 30))
@@ -16,6 +16,7 @@
            ((not (owl_memory_converter-srv:success
                   (roslisp:call-service convert-service-name
                                         'owl_memory_converter-srv:Conversion
+					:extend_old_model extend-old-models
                                         :owl_file_name
                                         "../logs/robot_memory/exp-0/log.owl")))
             (cram-language:fail 'learning-failed))

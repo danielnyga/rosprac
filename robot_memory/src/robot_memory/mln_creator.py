@@ -6,6 +6,7 @@ from robot_memory.robot_memory_constants import Types, Predicates
 from robot_memory.mln_elements import *
 import math
 import os
+import shutil
 
 
 class MlnType(object):
@@ -13,7 +14,7 @@ class MlnType(object):
     DESIGNATOR = "designator"
 
 
-def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
+def create_and_save_mlns(root_nodes, extend_old_mlns=False, learner=None, debug=False, logger=None):
     root_nodes = task_tree_preprocessor.preprocess_task_tree(root_nodes)
     dbs = database_creator.create_database_collection(root_nodes)
     mlns = [
@@ -21,6 +22,8 @@ def create_and_save_mlns(root_nodes, learner=None, debug=False, logger=None):
         _create_designator_mln(dbs)
     ]
     FILENAME_PREFIX = "../learnt_mlns/"
+    if not extend_old_mlns and os.path.isdir(FILENAME_PREFIX):
+        shutil.rmtree(FILENAME_PREFIX)
     if not os.path.isdir(FILENAME_PREFIX):
         os.mkdir(FILENAME_PREFIX)
     if debug:

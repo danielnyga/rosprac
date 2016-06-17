@@ -57,7 +57,7 @@ class RobotMemoryService(object):
             root_nodes = _create_task_trees(messages)
 #            learner = PracmlnAdapter()
             learner = None
-            mln_creator.create_and_save_mlns(root_nodes, learner, debug, rospy)
+            mln_creator.create_and_save_mlns(root_nodes, request.extend_old_model, learner, debug, rospy)
         except Exception:
             rospy.logfatal(traceback.format_exc())
             return LearningTriggerResponse(success=False)

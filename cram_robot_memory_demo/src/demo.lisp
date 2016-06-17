@@ -16,7 +16,7 @@
                                       "CounterTop" "kitchen_sink_block_counter_top")))
   (execute-in-simulation #'(lambda() (perceive-mug-at-location
                                       "Cupboard" "pancake_table")))
-  (cram-robot-memory:complete-learning)
+  (cram-robot-memory:complete-learning nil)
   (roslisp-utilities::shutdown-ros))
 
 (defun execute-test()

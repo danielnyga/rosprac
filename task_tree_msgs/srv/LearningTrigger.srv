@@ -1,4 +1,5 @@
 uint64 number_of_required_messages
+bool extend_old_model
 ---
 bool success
 string message

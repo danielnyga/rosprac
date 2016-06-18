@@ -18,7 +18,7 @@ class Predicates(object):
     GOAL_PATTERN = Predicate("goalPattern", Types.TASK, +Types.GOAL_PATTERN)
     GOAL_PARAMETER = Predicate("goalParameter", Types.DESIGNATOR, +Types.TASK)
     GOAL_PARAMETER_KEY = Predicate("goalParameterKey", Types.DESIGNATOR, +Types.GOAL_PARAMETER_KEY)
-    DESIGNATOR_PROPERTY = Predicate("designatorProperty", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR)
+    DESIGNATOR_PROPERTY = Predicate("designatorProperty", Types.DESIGNATOR_PROPERTY, -Types.DESIGNATOR)
     DESIGNATOR_PROPERTY_KEY = Predicate("propertyKey", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_PROPERTY_KEY)
     DESIGNATOR_PROPERTY_VALUE = Predicate("propertyValue", Types.DESIGNATOR_PROPERTY, +Types.DESIGNATOR_PROPERTY_VALUE)
 

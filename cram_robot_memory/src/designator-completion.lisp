@@ -14,65 +14,124 @@
         (evidence (convert-to-evidence properties
                                        (not use-simplified-mln) task goal-ctxt goal-parm)))
     (roslisp:ros-info (cram-robot-memory) "completing designator ~a..." designator)
-    (car (complete-key config properties evidence nil nil do-sth-with))))
+    (completion-result-target-fun-result
+     (complete-key (make-completion-args :rosmln-config config
+                                         :designator-properties properties
+                                         :evidence evidence
+                                         :seen-keys nil
+                                         :tried-properties nil
+                                         :target-function do-sth-with)))))
 
 (defun test-completion() ;This is just for testing purposes - it can be removed...
 	(let*((mug (cram-designators:make-designator :object `((:name "mug")))))
     (print (with-completed-designator #'(lambda(x) (declare (ignore x)) nil) mug)); 'achieve "OBJECT-IN-HAND ?OBJ"))
     t))
 
-(defun complete-key(conf desig-props property-evidence seen-keys tried-props target-func)
-  (let*((prop-idx (length desig-props))
-        (prop-atom (format nil "designatorProperty(Prop~D, Designator)" prop-idx))
-        (evidence (cons prop-atom property-evidence))
-        (query (format nil "propertyKey(Prop~D, ?k)" prop-idx))
-        (result (cram-rosmln:evidence-query conf query evidence)))
-    (complete-key-rec conf desig-props evidence seen-keys tried-props target-func result nil)))
+(defstruct completion-args
+  rosmln-config
+  designator-properties
+  evidence
+  seen-keys
+  tried-properties
+  target-function)
 
-(defun complete-key-rec(conf desig-props evidence seen-keys tried-props
-                        target-func results called)
-  (let*((best-key (get-argument-from-best-result results 1))
+(defun update-completion-args
+  (comp-args &key (rosmln-config (completion-args-rosmln-config comp-args))
+                  (designator-properties (completion-args-designator-properties comp-args))
+                  (evidence (completion-args-evidence comp-args))
+                  (seen-keys (completion-args-seen-keys comp-args))
+                  (tried-properties (completion-args-tried-properties comp-args))
+                  (target-function (completion-args-target-function comp-args)))
+  (make-completion-args :rosmln-config rosmln-config
+                        :designator-properties designator-properties
+                        :evidence evidence
+                        :seen-keys seen-keys
+                        :tried-properties tried-properties
+                        :target-function target-function))
+
+(defstruct completion-result
+  (target-fun-result nil)
+  (tried-properties nil)
+  (call-in-last-rec nil))
+
+(defun update-completion-result
+  (comp-result &key (target-fun-result (completion-result-target-fun-result comp-result))
+                    (tried-properties (completion-result-tried-properties comp-result))
+                    (call-in-last-rec (completion-result-call-in-last-rec comp-result)))
+  (make-completion-result :target-fun-result target-fun-result
+                          :tried-properties tried-properties
+                          :call-in-last-rec call-in-last-rec))
+
+(defun complete-key(comp-args)
+  (let*((prop-idx (length (completion-args-designator-properties comp-args)))
+        (prop-atom (format nil "designatorProperty(Prop~D, Designator)" prop-idx))
+        (evidence (cons prop-atom (completion-args-evidence comp-args)))
+        (query (format nil "propertyKey(Prop~D, ?k)" prop-idx))
+        (result (cram-rosmln:evidence-query (completion-args-rosmln-config comp-args)
+                                            query
+                                            evidence)))
+    (complete-key-rec (update-completion-args comp-args :evidence evidence) result nil)))
+
+(defun complete-key-rec(comp-args results called)
+  (let*((tried-props (completion-args-tried-properties comp-args))
+        (desig-props (completion-args-designator-properties comp-args))
+        (target-func (completion-args-target-function comp-args))
+        (seen-keys (completion-args-seen-keys comp-args))
+        (best-key (get-argument-from-best-result results 1))
         (best-prob (car (car results)))
         (uniform-key-dist (every #'(lambda(e)(= (car e) best-prob)) results))
         (no-more-keys (or (< best-prob prob-threshold) uniform-key-dist)))
     (cond ((and no-more-keys called)
-           `(nil ,tried-props nil))
+           (make-completion-result :tried-properties tried-props))
           (no-more-keys
            (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
-           `(,(funcall target-func (get-designator desig-props))
-             ,(cons desig-props tried-props)
-             nil))
+           (make-completion-result :target-fun-result
+                                   (funcall target-func (get-designator desig-props))
+                                   :tried-properties (cons desig-props tried-props)))
           ((member-if #'(lambda(x) (equal x best-key)) seen-keys)
-           (complete-key-rec conf desig-props evidence seen-keys
-                             tried-props target-func (cdr results) called))
+           (complete-key-rec comp-args (cdr results) called))
           (t
-           (recurse-if-car-null (complete-value conf desig-props evidence
-                                                seen-keys tried-props target-func best-key)
-                                #'(lambda(result)
-                                    (if (car (last result)) ;retuned from a direct call
-                                        `(,(nth 0 result) ,(nth 1 result) nil)
-                                        (complete-key-rec conf desig-props evidence seen-keys
-                                                          (car (cdr result))
-                                                          target-func (cdr results) t))))))))
+           (recurse-if-result-null
+            (complete-value comp-args best-key)
+            #'(lambda(result)
+                (if (completion-result-call-in-last-rec result) ;retuned from a direct call
+                    (update-completion-result result :call-in-last-rec nil)
+                    (complete-key-rec
+                     (update-completion-args
+                      comp-args
+                      :tried-properties (completion-result-tried-properties result))
+                     (cdr results) t))))))))
 
-(defun complete-value(conf desig-props key-evidence seen-keys tried-props target-func key)
-  (let*((tries (remove-if (lambda(w) (not (subsetp desig-props w :test #'equal))) tried-props))
-        (already-tried(some #'(lambda (w) (some #'(lambda (kv) (equal (car kv) key)) w)) tries)))
+(defun complete-value(comp-args key)
+  (let*((tried-props (completion-args-tried-properties comp-args))
+        (desig-props (completion-args-designator-properties comp-args))
+        (tries (remove-if (lambda(w) (not (subsetp desig-props w :test #'equal))) tried-props))
+        (already-tried(some #'(lambda(w) (some #'(lambda(kv) (equal (car kv) key)) w)) tries)))
     (if already-tried
-        `(nil ,tried-props nil)
+        (make-completion-result :tried-properties tried-props)
         (let*((prop-idx (length desig-props))
               (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx key))
-              (evidence (cons best-key-atom key-evidence))
+              (evidence (cons best-key-atom (completion-args-evidence comp-args)))
               (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
+              (conf (completion-args-rosmln-config comp-args))
               (result (cram-rosmln:evidence-query conf query evidence))
               (second-best-prob (car (car (cdr result))))
-              (seen-upd (if (< second-best-prob prob-threshold) (cons key seen-keys) seen-keys)))
-          (complete-val-rec conf desig-props evidence seen-upd
-                            tried-props target-func result key nil)))))
+              (seen-keys (completion-args-seen-keys comp-args))
+              (seen-upd (if (< second-best-prob prob-threshold)
+                            (cons key seen-keys)
+                            seen-keys)))
+          (complete-val-rec (update-completion-args comp-args
+                                                    :evidence evidence
+                                                    :seen-keys seen-upd)
+                            result key nil)))))
 
-(defun complete-val-rec(conf desig-props evidence seen-keys
-                        tried-props target-func results key called)
-  (let*((best-val (get-argument-from-best-result results 1))
+(defun complete-val-rec(comp-args results key called)
+  (let*((desig-props (completion-args-designator-properties comp-args))
+        (evidence (completion-args-evidence comp-args))
+        (tried-props (completion-args-tried-properties comp-args))
+        (target-func (completion-args-target-function comp-args))
+        (seen-keys (completion-args-seen-keys comp-args))
+        (best-val (get-argument-from-best-result results 1))
         (prop-idx (length desig-props))
         (best-prob (car (car results)))
         (uniform-val-dist (every #'(lambda(e)(= (car e) best-prob)) results))
@@ -81,25 +140,30 @@
         (updated-ev (cons (format nil "propertyValue(Prop~D,~S)" prop-idx best-val) evidence))
         (no-more-values (or (< best-prob prob-threshold) uniform-val-dist)))
     (cond ((and no-more-values called)
-           `(nil ,tried-props nil))
+           (make-completion-result :tried-properties tried-props))
           (no-more-values
            (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
-           `(,(funcall target-func (get-designator desig-props))
-             ,(cons desig-props tried-props)
-             t))
+           (make-completion-result :target-fun-result
+                                   (funcall target-func (get-designator desig-props))
+                                   :tried-properties (cons desig-props tried-props)
+                                   :call-in-last-rec t))
           ((member-if #'(lambda(x) (equal x kv-pair)) desig-props)
-           (complete-val-rec conf desig-props evidence seen-keys
-                             tried-props target-func (cdr results) key called))
+           (complete-val-rec comp-args (cdr results) key called))
           ((equal best-val "<hard coded pose>")
-           `(nil ,tried-props nil))
+           (make-completion-result :tried-properties tried-props))
           (t
            (roslisp:ros-info (cram-robot-memory) "updated: ~a" updated-props)
-           (recurse-if-car-null (complete-key conf updated-props updated-ev
-                                              (cons key seen-keys) tried-props target-func)
-                                #'(lambda(result)
-                                    (complete-val-rec conf desig-props evidence seen-keys
-                                                      (car (cdr result))
-                                                      target-func (cdr results) key t)))))))
+           (recurse-if-result-null
+            (complete-key (update-completion-args comp-args
+                                                  :designator-properties updated-props
+                                                  :evidence updated-ev
+                                                  :seen-keys (cons key seen-keys)))
+            #'(lambda(result)
+                (complete-val-rec
+                 (update-completion-args
+                  comp-args
+                  :tried-properties (completion-result-tried-properties result))
+                 (cdr results) key t)))))))
     
 (defun get-designator-type(designator)
   (let* ((class-name (symbol-name (type-of designator)))
@@ -291,7 +355,7 @@
         (subseq argument 1 (- (length argument) 1))
         "")))
 
-(defun recurse-if-car-null(result recursion-function)
-  (if (null (car result))
+(defun recurse-if-result-null(result recursion-function)
+  (if (null (completion-result-target-fun-result result))
       (funcall recursion-function result)
       result))

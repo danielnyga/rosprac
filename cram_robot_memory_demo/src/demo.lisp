@@ -16,6 +16,7 @@
                                       "CounterTop" "kitchen_sink_block_counter_top")))
   (execute-in-simulation #'(lambda() (perceive-mug-at-location
                                       "Cupboard" "pancake_table")))
+  (sleep 1); Wait for the mongodb to log everything...
   (cram-robot-memory:complete-learning nil)
   (roslisp-utilities::shutdown-ros))
 
@@ -24,6 +25,7 @@
   (init-kitchen-and-pr2-in-bullet)
   (spawn-object-in-bullet :mug-3 :mug 0.2 '((-0.9 -0.7 0.8) (0 0 0 1)))
   (execute-in-simulation #'get-mug)
+  (sleep 1); Wait for cram beliefstate to complete...TODO: Find anther solution...
   (roslisp-utilities::shutdown-ros))
 
 (cram-language:def-top-level-cram-function perceive-mug-at-location(location-on location-name)

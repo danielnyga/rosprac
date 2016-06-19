@@ -10,5 +10,6 @@
   ((:module "src"
     :components
     ((:file "package")
-     (:file "designator-completion" :depends-on ("package"))
+     (:file "utilities" :depends-on ("package"))
+     (:file "designator-completion" :depends-on ("package" "utilities"))
      (:file "learning" :depends-on ("package"))))))

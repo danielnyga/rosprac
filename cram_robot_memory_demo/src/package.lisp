@@ -3,4 +3,5 @@
 (defpackage cram-robot-memory-demo
   (:nicknames :crmd)
   (:use #:common-lisp #:roslisp)
-  (:export execute-demo))
+  (:export execute-perceive-and-grasp-mug-demo
+           execute-perceive-and-grasp-mug-demo-in-bullet))

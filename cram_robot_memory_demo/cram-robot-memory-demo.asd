@@ -29,4 +29,10 @@
   ((:module "src"
     :components
     ((:file "package")
-     (:file "demo" :depends-on ("package"))))))
+     (:file "environment" :depends-on ("package"))
+     (:file "utilities" :depends-on ("package" "environment"))
+     (:file "bullet-environment" :depends-on ("package" "environment"))
+     (:file "perceive-and-grasp-mug-demo" :depends-on ("package" 
+                                                       "environment"  
+                                                       "utilities"
+                                                       "bullet-environment"))))))

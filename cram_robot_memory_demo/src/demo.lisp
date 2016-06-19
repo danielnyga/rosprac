@@ -8,7 +8,7 @@
   (roslisp-utilities::startup-ros)
   (cram-robot-memory:start-learning)
   (init-kitchen-and-pr2-in-bullet)
-  (spawn-object-in-bullet :mug-1 :mug 0.2 '((-0.9 -0.7 0.8) (0 0 0 1)))
+  (spawn-object-in-bullet :mug-1 :mug 0.2 '((-0.9 -0.6 0.8) (0 0 0 1)))
   (spawn-object-in-bullet :mug-2 :mug 0.2 '((1.5 0.9 0.9) (0 0 0 1)))
   (execute-in-simulation #'(lambda() (perceive-mug-at-location
                                       "CounterTop" "kitchen_sink_block_counter_top")))
@@ -16,38 +16,50 @@
                                       "CounterTop" "kitchen_sink_block_counter_top")))
   (execute-in-simulation #'(lambda() (perceive-mug-at-location
                                       "Cupboard" "pancake_table")))
-  (sleep 1); Wait for the mongodb to log everything...
+  (execute-in-simulation #'(lambda() (grasp-mug-at-pose '(-0.9 -0.6 0.8) '(0 0 0 1))))
   (cram-robot-memory:complete-learning nil)
   (roslisp-utilities::shutdown-ros))
 
+(cram-language:def-top-level-cram-function grasp-mug-at-pose(position orientation)
+  (cram-language-designator-support:with-designators
+      ((mug-loc :location `((:pose ,(cl-transforms-stamped:make-pose-stamped 
+                                     "map"
+                                     0.0
+                                     (cl-transforms:make-3d-vector
+                                      (nth 0 position) (nth 1 position) (nth 2 position))
+                                     (cl-transforms:make-quaternion
+                                      (nth 0 orientation) (nth 1 orientation)
+                                      (nth 2 orientation) (nth 3 orientation))))))
+       (handle-loc :location `((:pose ,(cl-transforms:make-pose
+                                        (cl-transforms:make-3d-vector -0.005 0.0 0.0)
+                                        (cl-transforms:make-quaternion 0.5 -0.5 -0.5 0.5)))))
+       (handle :object `((:type :handle) (:at ,handle-loc)))
+       (mug :object `((:type :mug) (:handle ,handle) (:at ,mug-loc))))
+    (cram-plan-library:achieve `(cram-plan-library:object-in-hand ,mug))))
+
+(cram-language:def-top-level-cram-function perceive-mug-at-location(location-on location-name)
+  (cram-language-designator-support:with-designators
+      ((mug-location :location `((:on ,location-on) (:name ,location-name)))
+       (mug :object `((:type :mug) (:at ,mug-location))))
+    (cram-plan-library:perceive-object 'cram-plan-library:a mug)))
+
+(cram-language:def-top-level-cram-function perceive-and-grasp-mug()
+  (cram-robot-memory:complete-with-next-on-failure
+   #'(lambda(mug-p)
+       (cram-plan-library:perceive-object 'cram-plan-library:a mug-p)
+       (cram-robot-memory:complete-with-next-on-failure
+        #'(lambda(mug-g) (cram-plan-library:achieve `(cram-plan-library:object-in-hand ,mug-g)))
+        mug-p 'achieve "OBJECT-IN-HAND ?OBJ"))
+   (cram-designators:make-designator :object `((:type :mug)))
+   'perceive-object))
+          
 (defun execute-test()
   (roslisp-utilities::startup-ros)
   (init-kitchen-and-pr2-in-bullet)
   (spawn-object-in-bullet :mug-3 :mug 0.2 '((-0.9 -0.7 0.8) (0 0 0 1)))
-  (execute-in-simulation #'get-mug)
+  (execute-in-simulation #'perceive-and-grasp-mug)
   (sleep 1); Wait for cram beliefstate to complete...TODO: Find anther solution...
   (roslisp-utilities::shutdown-ros))
-
-(cram-language:def-top-level-cram-function perceive-mug-at-location(location-on location-name)
-  (cram-plan-library:perceive-object
-   'cram-plan-library:a
-   (cram-designators:make-designator
-       :object `((:type :mug)
-                 (:at ,(cram-designators:make-designator
-                        :location `((:on ,location-on)
-                                    (:name ,location-name))))))))
-
-(cram-language:def-top-level-cram-function get-mug()
-  (cram-robot-memory:with-completed-designator
-      #'(lambda(d)
-        (cram-language:with-failure-handling
-            ((cram-plan-failures:object-not-found (e)
-               (roslisp:ros-info (cram-robot-memory-demo)
-                                 "encountered an ~a error - retrying..." e)
-               (return nil)))
-          (cram-plan-library:perceive-object 'cram-plan-library:a d)
-          (cram-plan-library:achieve `(cram-plan-library:object-in-hand ,d))))
-    (cram-designators:make-designator :object `((:type :mug)))))
 
 (defun execute-in-simulation(function)
   (cram-projection:with-projection-environment

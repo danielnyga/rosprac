@@ -3,11 +3,13 @@
 (define-condition learning-failed (simple-condition) ())
 
 (defun start-learning()
+  ;avoid static dependencies to cram_beliefstate when learning is not necessary...
   (ros-load:load-system "cram_beliefstate" :cram-beliefstate)
 )
 
 (defun complete-learning(extend-old-models)
   (funcall (find-symbol "EXTRACT-OWL-FILE" "BELIEFSTATE") "log.owl")
+  (funcall (find-symbol "ENABLE-LOGGING" "BELIEFSTATE") nil)
   (let ((convert-service-name "owl_memory_converter/convert"))
     (cond  ((not (wait-for-service convert-service-name 30))
             (roslisp:ros-error (cram-rosmln) "timeout while waiting for service ~a!"

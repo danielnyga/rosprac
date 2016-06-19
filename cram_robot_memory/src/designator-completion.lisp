@@ -2,6 +2,17 @@
 
 (defconstant prob-threshold 0.00001)
 
+(defun complete-with-next-on-failure(do-sth-with designator &optional task goal-ctxt goal-parm)
+  (car (with-completed-designator
+         #'(lambda(d)
+           (cram-language:with-failure-handling
+               ((cram-language:plan-failure (e)
+                  (roslisp:ros-info (cram-robot-memory-demo)
+                                    "encountered an ~a error - retrying..." e)
+                  (return nil)))
+             `(,(funcall do-sth-with d))))
+         designator task goal-ctxt goal-parm)))                       
+
 (defun with-completed-designator(do-sth-with designator &optional task goal-ctxt goal-parm) 
   (let*((use-simplified-mln (and (null task) (null goal-ctxt) (null goal-parm)))
         (config (cram-rosmln:make-simple-config (if use-simplified-mln
@@ -70,9 +81,9 @@
         (result (cram-rosmln:evidence-query (completion-args-rosmln-config comp-args)
                                             query
                                             evidence)))
-    (complete-key-rec (update-completion-args comp-args :evidence evidence) result nil)))
+    (complete-key-rec (update-completion-args comp-args :evidence evidence) result)))
 
-(defun complete-key-rec(comp-args results called)
+(defun complete-key-rec(comp-args results)
   (let*((tried-props (completion-args-tried-properties comp-args))
         (desig-props (completion-args-designator-properties comp-args))
         (target-func (completion-args-target-function comp-args))
@@ -81,7 +92,7 @@
         (best-prob (car (car results)))
         (uniform-key-dist (every #'(lambda(e)(= (car e) best-prob)) results))
         (no-more-keys (or (< best-prob prob-threshold) uniform-key-dist)))
-    (cond ((and no-more-keys called)
+    (cond ((and no-more-keys (already-tried comp-args))
            (make-completion-result :tried-properties tried-props))
           (no-more-keys
            (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
@@ -89,7 +100,7 @@
                                    (funcall target-func (get-designator desig-props))
                                    :tried-properties (cons desig-props tried-props)))
           ((member-if #'(lambda(x) (equal x best-key)) seen-keys)
-           (complete-key-rec comp-args (cdr results) called))
+           (complete-key-rec comp-args (cdr results)))
           (t
            (recurse-if-result-null
             (complete-value comp-args best-key)
@@ -100,32 +111,28 @@
                      (update-completion-args
                       comp-args
                       :tried-properties (completion-result-tried-properties result))
-                     (cdr results) t))))))))
+                     (cdr results)))))))))
 
 (defun complete-value(comp-args key)
-  (let*((tried-props (completion-args-tried-properties comp-args))
-        (desig-props (completion-args-designator-properties comp-args))
-        (tries (remove-if (lambda(w) (not (subsetp desig-props w :test #'equal))) tried-props))
-        (already-tried(some #'(lambda(w) (some #'(lambda(kv) (equal (car kv) key)) w)) tries)))
-    (if already-tried
-        (make-completion-result :tried-properties tried-props)
-        (let*((prop-idx (length desig-props))
-              (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx key))
-              (evidence (cons best-key-atom (completion-args-evidence comp-args)))
-              (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
-              (conf (completion-args-rosmln-config comp-args))
-              (result (cram-rosmln:evidence-query conf query evidence))
-              (second-best-prob (car (car (cdr result))))
-              (seen-keys (completion-args-seen-keys comp-args))
-              (seen-upd (if (< second-best-prob prob-threshold)
-                            (cons key seen-keys)
-                            seen-keys)))
-          (complete-val-rec (update-completion-args comp-args
-                                                    :evidence evidence
-                                                    :seen-keys seen-upd)
-                            result key nil)))))
+  (if (already-tried comp-args key)
+      (make-completion-result :tried-properties (completion-args-tried-properties comp-args))
+      (let*((prop-idx (length (completion-args-designator-properties comp-args)))
+            (best-key-atom (format nil "propertyKey(Prop~D,~S)" prop-idx key))
+            (evidence (cons best-key-atom (completion-args-evidence comp-args)))
+            (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
+            (conf (completion-args-rosmln-config comp-args))
+            (result (cram-rosmln:evidence-query conf query evidence))
+            (second-best-prob (car (car (cdr result))))
+            (seen-keys (completion-args-seen-keys comp-args))
+            (seen-upd (if (< second-best-prob prob-threshold)
+                          (cons key seen-keys)
+                          seen-keys)))
+        (complete-val-rec (update-completion-args comp-args
+                                                  :evidence evidence
+                                                  :seen-keys seen-upd)
+                          result key))))
 
-(defun complete-val-rec(comp-args results key called)
+(defun complete-val-rec(comp-args results key)
   (let*((desig-props (completion-args-designator-properties comp-args))
         (evidence (completion-args-evidence comp-args))
         (tried-props (completion-args-tried-properties comp-args))
@@ -139,7 +146,7 @@
         (updated-props (cons kv-pair desig-props))
         (updated-ev (cons (format nil "propertyValue(Prop~D,~S)" prop-idx best-val) evidence))
         (no-more-values (or (< best-prob prob-threshold) uniform-val-dist)))
-    (cond ((and no-more-values called)
+    (cond ((and no-more-values (already-tried comp-args))
            (make-completion-result :tried-properties tried-props))
           (no-more-values
            (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
@@ -148,7 +155,7 @@
                                    :tried-properties (cons desig-props tried-props)
                                    :call-in-last-rec t))
           ((member-if #'(lambda(x) (equal x kv-pair)) desig-props)
-           (complete-val-rec comp-args (cdr results) key called))
+           (complete-val-rec comp-args (cdr results) key))
           ((equal best-val "<hard coded pose>")
            (make-completion-result :tried-properties tried-props))
           (t
@@ -163,8 +170,16 @@
                  (update-completion-args
                   comp-args
                   :tried-properties (completion-result-tried-properties result))
-                 (cdr results) key t)))))))
-    
+                 (cdr results) key)))))))
+
+(defun already-tried(comp-args &optional key)
+  (let*((tried-props (completion-args-tried-properties comp-args))
+        (desig-props (completion-args-designator-properties comp-args))
+        (tries (remove-if (lambda(w) (not (subsetp desig-props w :test #'equal))) tried-props)))
+    (if (null key)
+        (not (null tries))
+        (some #'(lambda(w) (some #'(lambda(kv) (equal (car kv) key)) w)) tries))))
+
 (defun get-designator-type(designator)
   (let* ((class-name (symbol-name (type-of designator)))
          (designator-name (subseq class-name 0 (search "-DESIGNATOR" class-name))))
@@ -220,11 +235,11 @@
     (make-desig-or-val (group (split-keys designator-properties)))))
 
 (defun convert-to-evidence(properties include-task-info
-                              &optional task goal-context goal-param )
+                           &optional task goal-context goal-param )
   (concatenate 'list
                (properties-to-evidence properties "Designator"
-                                             (if include-task-info "Task" nil)
-                                             goal-param)
+                                       (if include-task-info "Task" nil)
+                                       goal-param)
                (if include-task-info 
                    (task-information-to-evidence "Task" t
                                                  (if (null task) nil
@@ -271,7 +286,7 @@
                  (desig-type (get-designator-type designator))
                  (key (if (= (length prefix) 0)
                           (format nil "~a.~a" desig-type key-suffix)
-                          (format nil "~a.~a::~a" desig-type prefix key-suffix)))
+                          (format nil "~a::~a.~a" prefix desig-type key-suffix)))
                  (value (car (cdr element))))
             (typecase value
               (symbol (cons `(,key ,(symbol-name value)) nil))

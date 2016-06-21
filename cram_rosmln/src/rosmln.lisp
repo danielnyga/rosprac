@@ -4,11 +4,17 @@
   (roslisp:make-msg "rosmln/MLNConfig"
                     (mlnFiles) mln-file
                     (db) ""
-                    (method) (ecase method (:fast-exact "FastExact"))
+                    (method) (ecase method (:fast-exact "FastExact")
+                                           (:gibbs-sampling "GibbsSampler")
+                                           (:mc-sat "MCSAT")
+                                           (:enumeration-ask "EnumerationAsk")
+                                           (:wcsp "WCSPInference")
+                                           (:sa-max-wal-sat "SAMaxWalkSAT"))
                     (output_filename) ""
                     (saveResults) nil
                     (logic) (ecase logic (:first-order-logic "FirstOrderLogic") (:fuzzy-logic "FuzzyLogic"))
                     (grammar) (ecase grammar (:prac-grammar "PRACGrammar") (:standard-grammar "StandardGrammar"))))
+
 
 (defun evidence-query(config query evidence)
   (let* ((service-name "mln_interface")

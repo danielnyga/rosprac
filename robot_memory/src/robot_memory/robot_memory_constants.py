@@ -4,6 +4,7 @@ from robot_memory.mln_elements import Type, Predicate
 class Types(object):
     TASK = Type("task")
     TASK_NAME = Type("taskName")
+    FAILURE_NAME = Type("failureName")
     GOAL_PATTERN = Type("goalPattern")
     GOAL_PARAMETER_KEY = Type("goalParameter")
     DESIGNATOR = Type("designator")
@@ -14,7 +15,7 @@ class Types(object):
 
 class Predicates(object):
     TASK_NAME = Predicate("name", Types.TASK, +Types.TASK_NAME)
-    TASK_SUCCESS = Predicate("success", Types.TASK)
+    TASK_FAILURE = Predicate("failure", Types.TASK, +Types.FAILURE_NAME)
     GOAL_PATTERN = Predicate("goalPattern", Types.TASK, +Types.GOAL_PATTERN)
     GOAL_PARAMETER = Predicate("goalParameter", Types.DESIGNATOR, +Types.TASK)
     GOAL_PARAMETER_KEY = Predicate("goalParameterKey", Types.DESIGNATOR, +Types.GOAL_PARAMETER_KEY)

@@ -35,4 +35,8 @@
      (:file "perceive-and-grasp-mug-demo" :depends-on ("package" 
                                                        "environment"  
                                                        "utilities"
-                                                       "bullet-environment"))))))
+                                                       "bullet-environment"))
+     (:file "success-estimation-demo" :depends-on ("package"
+                                                   "environment"
+                                                   "utilities"
+                                                   "bullet-environment"))))))

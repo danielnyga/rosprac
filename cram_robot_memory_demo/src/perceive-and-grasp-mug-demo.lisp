@@ -1,24 +1,26 @@
 (in-package :cram-robot-memory-demo)
 
-(defun execute-perceive-and-grasp-mug-demo-in-bullet()
-  (execute-perceive-and-grasp-mug-demo :bullet))
-
-(defun execute-perceive-and-grasp-mug-demo(environment)
+(defun execute-perceive-and-grasp-mug-demo(&optional (environment :bullet))
   (execute-training-and-test-functions environment
                                        #'create-perceive-and-grasp-mug-training-data
                                        #'test-perceive-and-grasp-mug))
 
 (defun create-perceive-and-grasp-mug-training-data(environment)
-  (spawn-object environment :mug-1 :mug 0.2 '((-0.9 -0.6 0.8) (0 0 0 1)))
-  (spawn-object environment :mug-2 :mug 0.2 '((1.5 0.9 0.9) (0 0 0 1)))
-  (perceive-mug-at-location "CounterTop" "kitchen_sink_block_counter_top")
-  (perceive-mug-at-location "CounterTop" "kitchen_sink_block_counter_top")
-  (perceive-mug-at-location "Cupboard" "pancake_table")
-  (grasp-mug-at-pose '(-0.9 -0.6 0.8) '(0 0 0 1)))
+  (clean-and-spawn-kitchen-and-robot environment)
+  (spawn-object environment :mug-1 :mug '((-0.9 -0.6 0.8) (0 0 0 1)))
+  (spawn-object environment :mug-2 :mug '((1.5 0.9 0.9) (0 0 0 1)))
+  (execute-in-environment
+   environment
+   #'(lambda()
+     (perceive-mug-at-location "CounterTop" "kitchen_sink_block_counter_top")
+     (perceive-mug-at-location "CounterTop" "kitchen_sink_block_counter_top")
+     (perceive-mug-at-location "Cupboard" "pancake_table")
+     (grasp-mug-at-pose '(-0.9 -0.6 0.8) '(0 0 0 1)))))
 
 (defun test-perceive-and-grasp-mug(environment)
-  (spawn-object environment :mug-3 :mug 0.2 '((-0.9 -0.6 0.8) (0 0 0 1)))
-  (perceive-and-grasp-mug))
+  (clean-and-spawn-kitchen-and-robot environment)
+  (spawn-object environment :mug-3 :mug '((-0.9 -0.6 0.8) (0 0 0 1)))
+  (execute-in-environment environment #'perceive-and-grasp-mug))
 
 (cram-language:def-cram-function grasp-mug-at-pose(position orientation)
   (cram-language-designator-support:with-designators
@@ -49,6 +51,6 @@
        (cram-plan-library:perceive-object 'cram-plan-library:a mug-p)
        (cram-robot-memory:complete-with-next-on-failure
         #'(lambda(mug-g) (cram-plan-library:achieve `(cram-plan-library:object-in-hand ,mug-g)))
-        mug-p 'achieve "OBJECT-IN-HAND ?OBJ"))
+        mug-p "ACHIEVE" "OBJECT-IN-HAND ?OBJ" "?OBJ"))
    (cram-designators:make-designator :object `((:type :mug)))
-   'perceive-object))
+   "PERCEIVE-OBJECT" "A ?OBJ-DESIG" "?OBJ-DESIG"))

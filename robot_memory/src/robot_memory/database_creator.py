@@ -11,8 +11,7 @@ def create_database_collection(root_tasks):
         db = Database()
         to_return.append(db)
         _append_to_db(db, Predicates.TASK_NAME, task.task_id, task.name)
-        if task.success:
-            _append_to_db(db, Predicates.TASK_SUCCESS, task.task_id)
+        _append_to_db(db, Predicates.TASK_FAILURE, task.task_id, " " if task.failure is None else task.failure)
         for goal_key, designator in task.designators:
             _append_to_db(db, Predicates.GOAL_PARAMETER, designator.designator_id, task.task_id)
             _append_to_db(db, Predicates.GOAL_PARAMETER_KEY, designator.designator_id, goal_key)

@@ -54,14 +54,14 @@
           (to-keyword(str) (symbol-value (intern (string-upcase str) "KEYWORD"))))
     (make-desig-or-val (group (split-keys designator-properties)))))
 
-(defun properties-to-evidence(properties desig-id
+(defun properties-to-evidence(properties desig-id start-index
                               &optional task-id goal-param)
   (concatenate
    'list
    (flatten-list
     (enumerate-and-map-list
      properties
-     0
+     start-index
      #'(lambda(index key-value-pair)
          (let* ((key (car key-value-pair))
                 (value (car (last key-value-pair)))
@@ -74,10 +74,12 @@
        nil
        `(,(format nil "goalParameterKey(~a,~S)" desig-id goal-param))))) 
 
-(defun task-information-to-evidence(task-id success &optional task-name goal-context)
+(defun task-information-to-evidence(task-id &key include-failure failure task-name goal-context)
   (concatenate
    'list
-   (if success `(, (format nil "success(~a)" task-id)) nil)
+   (if include-failure
+       `(,(format nil "failure(~a,~S)" task-id (if (null failure) " " failure)))
+       nil)
    (if (null task-name) nil `(,(format nil "name(~a,~S)" task-id task-name)))
    (if (null goal-context)
        nil
@@ -168,3 +170,11 @@
                               position
                               orientation))
             (t nil)))))
+
+(defun get-rosmln-config(use-simplified-mln)
+  (cram-rosmln:make-simple-config (if use-simplified-mln
+                                      "../learnt_mlns/designator.mln"
+                                      "../learnt_mlns/task_and_designator.mln")
+                                  :fast-exact
+                                  :first-order-logic
+                                  :prac-grammar))

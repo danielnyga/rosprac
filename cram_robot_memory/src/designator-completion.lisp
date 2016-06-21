@@ -15,12 +15,7 @@
 
 (defun with-completed-designator(do-sth-with designator &optional task goal-ctxt goal-parm) 
   (let*((use-simplified-mln (and (null task) (null goal-ctxt) (null goal-parm)))
-        (config (cram-rosmln:make-simple-config (if use-simplified-mln
-                                                    "../learnt_mlns/designator.mln"
-                                                    "../learnt_mlns/task_and_designator.mln")
-                                                :fast-exact
-                                                :first-order-logic
-                                                :prac-grammar))
+        (config (get-rosmln-config use-simplified-mln))
         (properties (get-designator-properties designator ""))
         (evidence (convert-to-evidence properties
                                        (not use-simplified-mln) task goal-ctxt goal-parm)))
@@ -35,7 +30,8 @@
 
 (defun test-completion() ;This is just for testing purposes - it can be removed...
 	(let*((mug (cram-designators:make-designator :object `((:name "mug")))))
-    (print (with-completed-designator #'(lambda(x) (declare (ignore x)) nil) mug)); 'achieve "OBJECT-IN-HAND ?OBJ"))
+    (print (with-completed-designator #'(lambda(x) (declare (ignore x)) nil)
+             mug "ACHIEVE" "OBJECT-IN-HAND ?OBJ" "?OBJ"))
     t))
 
 (defstruct completion-args
@@ -183,14 +179,16 @@
 (defun convert-to-evidence(properties include-task-info
                            &optional task goal-context goal-param )
   (concatenate 'list
-               (properties-to-evidence properties "Designator"
+               (properties-to-evidence properties "Designator" 0
                                        (if include-task-info "Task" nil)
                                        goal-param)
                (if include-task-info 
-                   (task-information-to-evidence "Task" t
-                                                 (if (null task) nil
-                                                     (symbol-name task))
-                                                 goal-context)
+                   (task-information-to-evidence
+                    "Task"
+                    :include-failure t
+                    :failure nil
+                    :task-name task
+                    :goal-context goal-context)
                    nil)))
                                                                       
 (defun get-argument-from-best-result(results argument-index)

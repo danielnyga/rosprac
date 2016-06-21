@@ -69,11 +69,11 @@ def _create_task_trees(messages):
     to_return = []
     messages.sort(key=lambda m: m.sequence_number)
     call_stack = [None]
-    last_message = None
     for message in messages:
         if not message.finished:
             node_class = TaskTreeGoalNode if message.goal_context != "" or message.goal_properties else TaskTreeNode
-            tree_node = node_class(message.task_id, message.task_name, message.success, message.current_time)
+            failure = None if message.failure_name == "" else message.failure_name
+            tree_node = node_class(message.task_id, message.task_name, failure, message.current_time)
             tree_node.parent_task = call_stack[-1]
             call_stack.append(tree_node)
             if tree_node.parent_task is not None:
@@ -85,7 +85,7 @@ def _create_task_trees(messages):
                 raise Exception("Did not find the partner state!")
             tree_node = call_stack.pop()
             tree_node.name = message.task_name
-            tree_node.success = message.success
+            tree_node.failure = None if message.failure_name == "" else message.failure_name
             tree_node.duration = message.current_time - tree_node.duration
             designators = {}
             for designator in message.aggregated_child_designators:

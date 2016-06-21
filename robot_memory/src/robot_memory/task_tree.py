@@ -1,10 +1,11 @@
 import hashlib
 
+
 class TaskTreeNode(object):
-    def __init__(self, task_id, name, success, duration):
+    def __init__(self, task_id, name, failure, duration):
         self.__id = task_id
         self.__name = name
-        self.__success = success
+        self.__failure = failure
         self.__duration = duration
         self.__child_tasks = []
         self.__designators = []
@@ -27,12 +28,12 @@ class TaskTreeNode(object):
         self.__name = value
 
     @property
-    def success(self):
-        return self.__success
+    def failure(self):
+        return self.__failure
 
-    @success.setter
-    def success(self, value):
-        self.__success = value
+    @failure.setter
+    def failure(self, value):
+        self.__failure = value
 
     @property
     def duration(self):
@@ -68,7 +69,7 @@ class TaskTreeNode(object):
         self.__designators.append((key, designator))
 
     def __str__(self):
-        return "node id=%s name=%s success=%s duration=%s" % (self.task_id, self.name, self.success, self.duration)
+        return "node id=%s name=%s failure=%s duration=%s" % (self.task_id, self.name, self.failure, self.duration)
 
     def tree_as_string(self, indentation_level=0):
         return _reduce_string(lambda s1, s2: s1 +"\n"+ s2, [_indentation_string() * indentation_level + self.__str__()]+
@@ -78,8 +79,8 @@ class TaskTreeNode(object):
 
 
 class TaskTreeGoalNode(TaskTreeNode):
-    def __init__(self, task_id, name, success, duration):
-        TaskTreeNode.__init__(self, task_id, name, success, duration)
+    def __init__(self, task_id, name, failure, duration):
+        TaskTreeNode.__init__(self, task_id, name, failure, duration)
         self.__goal_pattern = ""
         self.__goal_properties = []
 

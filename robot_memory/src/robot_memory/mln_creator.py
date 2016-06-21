@@ -40,7 +40,7 @@ def create_and_save_mlns(root_nodes, extend_old_mlns=False, learner=None, debug=
 def _create_task_and_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.TASK_AND_DESIGNATOR)
     necessary_predicates = [Predicates.TASK_NAME]
-    optional_predicates = [Predicates.TASK_SUCCESS, Predicates.DESIGNATOR_PROPERTY,
+    optional_predicates = [Predicates.TASK_FAILURE, Predicates.DESIGNATOR_PROPERTY,
                            Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE,
                            Predicates.GOAL_PATTERN, Predicates.TASK_NAME, Predicates.GOAL_PARAMETER,
                            Predicates.GOAL_PARAMETER_KEY]
@@ -48,15 +48,14 @@ def _create_task_and_designator_mln(databases):
     formulas = _split_different_designators(formulas)
     formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"),  (Types.TASK, "?t"),
                                               (Types.DESIGNATOR, "?d")])
-    formulas = _add_negation_if_necessary(formulas, Predicates.TASK_SUCCESS, ~Predicates.TASK_SUCCESS("?t0"))
     mln.append_formulas(formulas)
     return mln
 
 
 def _create_designator_mln(databases):
     mln = _create_mln_skeleton(MlnType.DESIGNATOR)
-    necessary_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_SUCCESS]
-    optional_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_SUCCESS,
+    necessary_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_FAILURE]
+    optional_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_FAILURE,
                            Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
     formulas = _split_different_designators(formulas)
@@ -64,7 +63,7 @@ def _create_designator_mln(databases):
     for formula in formulas:
         for conjunction in formula.logical_formula:
             for atom in list(conjunction):
-                if atom.predicate == Predicates.TASK_SUCCESS:
+                if atom.predicate == Predicates.TASK_FAILURE:
                     conjunction.remove_element(atom)
     mln.append_formulas(formulas)
     return mln
@@ -89,7 +88,7 @@ def _learn_weights_and_save_mln(mln, databases, learner, filename_prefix):
 
 
 def _get_weight_offset():
-    return 650
+    return 100
 
 
 def _assign_weights(mln):
@@ -234,12 +233,3 @@ def _split_different_designators(formulas):
                     new_formula = Formula(formula.weight, Conjunction([Conjunction(atoms)]))
                     to_return.append(new_formula)
     return to_return
-
-
-def _add_negation_if_necessary(formulas, predicate, negation):
-    for formula in formulas:
-        for conjunction in formula.logical_formula:
-            if not [gnd_atom for gnd_atom in conjunction if hasattr(gnd_atom, "predicate") and
-                            gnd_atom.predicate == predicate]:
-                conjunction.add_element(negation)
-    return formulas

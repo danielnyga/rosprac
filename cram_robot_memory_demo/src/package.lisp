@@ -4,4 +4,4 @@
   (:nicknames :crmd)
   (:use #:common-lisp #:roslisp)
   (:export execute-perceive-and-grasp-mug-demo
-           execute-perceive-and-grasp-mug-demo-in-bullet))
+	   execute-success-estimation-demo))

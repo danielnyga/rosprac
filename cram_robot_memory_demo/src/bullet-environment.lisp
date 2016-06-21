@@ -29,16 +29,13 @@
                           (assert (cram-bullet-reasoning:joint-state
                                    ?w ?robot (("torso_lift_joint" 0.16825d0))))))))
 
-(defmethod spawn-object((environment (eql :bullet)) object-name object-type mass pose)
-  (cram-prolog:prolog `(and (cram-bullet-reasoning:bullet-world ?w)
-                            (assert (cram-bullet-reasoning:object ?w
-                                             :mesh ,object-name ,pose
-                                             :mass ,mass :color (1 0 0) :mesh ,object-type)))))
+(defmethod spawn-object((environment (eql :bullet)) object-name object-type pose)
+  (bullet-reasoning-utilities:spawn-object object-name object-type :color '(1 1 1) :pose pose))
 
 (defmethod execute-in-environment((environment (eql :bullet)) function)
   (cram-projection:with-projection-environment
       projection-process-modules::pr2-bullet-projection-environment
-      (funcall function)))
+      (cram-language:top-level (funcall function))))
 
 (cram-prolog:def-fact-group costmap-metadata ()
   (cram-prolog:<- (location-costmap:costmap-size 12 12))

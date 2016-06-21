@@ -5,6 +5,7 @@
 (defun start-learning()
   ;avoid static dependencies to cram_beliefstate when learning is not necessary...
   (ros-load:load-system "cram_beliefstate" :cram-beliefstate)
+  (funcall (find-symbol "ENABLE-LOGGING" "BELIEFSTATE") t)
 )
 
 (defun complete-learning(extend-old-models)

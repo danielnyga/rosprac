@@ -30,6 +30,7 @@ public class OwlConverter {
     }
 
     public void convert(Task rootTask) throws Exception {
+        assignFailures(rootTask);
         int sequenceNumber = 0;
         for(PreAndPostOrderTaskIterator iterator = 
                 new PreAndPostOrderTaskIterator(rootTask);
@@ -50,7 +51,7 @@ public class OwlConverter {
         toReturn.setTaskName(iterator.current().getContext().startsWith(Constants.PREFIX_GOAL_FUNCTION)
                 ? iterator.current().getContext().substring(Constants.PREFIX_GOAL_FUNCTION.length())
                 : iterator.current().getContext());
-        toReturn.setSuccess(successful(iterator.current()));
+        toReturn.setFailureName(getFailure(iterator.current()));
         setDesignatorsAndGoalContext(iterator.current(), toReturn);
         return toReturn;
     }
@@ -103,17 +104,15 @@ public class OwlConverter {
         return new Time(unixTime, 0);
     }
 
-    private boolean successful(Task t) throws Exception {
-        if(t.getOtherDataProperties().containsKey(Constants.PROPERTY_NAME_TASK_SUCCESS)) {
-            for(String value : t.getOtherDataProperties().get(Constants.PROPERTY_NAME_TASK_SUCCESS)) {
-                if(value.toLowerCase().trim().equals(Constants.PROPERTY_VALUE_TRUE)) {
-                    return true;
-                } else {
-                    return false;
-                }
+    private String getFailure(Task t) throws Exception {
+        if(t.getOtherDataProperties().containsKey(Constants.PROPERTY_NAME_FAILURE)) {
+            if(t.getOtherDataProperties().get(Constants.PROPERTY_NAME_FAILURE).size()!=1) {
+                throw new Exception("More than one failure is not supported!");
             }
+            return t.getOtherDataProperties().get(Constants.PROPERTY_NAME_FAILURE).iterator().next();
+        } else {
+            return ""; //No error
         }
-        throw new Exception("Property taskSuccess is not available!");
     }
 
     private void setDesignatorsAndGoalContext(Task t, RobotState robotStateMessage) throws Exception {
@@ -326,6 +325,48 @@ public class OwlConverter {
         String floatAsString = parent.getOtherDataProperties().get(propertyName).iterator().next();
         float value = Float.parseFloat(floatAsString);
         return String.format("%.3f", value);
+    }
+
+    private static void assignFailures(Task rootTask) throws Exception {
+        for(PreAndPostOrderTaskIterator it = new  PreAndPostOrderTaskIterator(rootTask); it.hasNext();) {
+            it.next(); //TODO: Change iterator behavior: Using it as normal iterator with "next" does not work...
+            Task task = it.current();
+            if(task.getOtherObjectProperties().containsKey(Constants.PROPERTY_NAME_EVENT_FAILURE)) {
+                for(LogElement failure : task.getOtherObjectProperties().get(Constants.PROPERTY_NAME_EVENT_FAILURE)) {
+                    if(failure instanceof  OWLLogElement &&
+                            failure.getOtherDataProperties().containsKey(Constants.PROPERTY_FAILURE_LABEL)) {
+                        String failureLabel = failure.getOtherDataProperties().
+                                get(Constants.PROPERTY_FAILURE_LABEL).iterator().next();
+                        assignFailuresRecursively(task, ((OWLLogElement) failure).getOwlInstanceName(), failureLabel);
+                    } else {
+                        throw new Exception("Invalid failure clause!");
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean assignFailuresRecursively(Task currentTask, String failureId, String failureName) {
+        boolean caughtFailure = false;
+        if(currentTask.getOtherObjectProperties().containsKey(Constants.PROPERTY_NAME_CAUGHT_FAILURE)) {
+            for(LogElement cf : currentTask.getOtherObjectProperties().get(Constants.PROPERTY_NAME_CAUGHT_FAILURE)) {
+                if(cf instanceof OWLLogElement && ((OWLLogElement) cf).getOwlInstanceName().equals(failureId)) {
+                    caughtFailure = true;
+                }
+            }
+        }
+        Task parentTask = currentTask.getParentTask();
+        if(parentTask!=null && assignFailuresRecursively(parentTask, failureId, failureName)) {
+            if (!currentTask.getOtherDataProperties().containsKey(Constants.PROPERTY_NAME_FAILURE)) {
+                currentTask.getOtherDataProperties().put(Constants.PROPERTY_NAME_FAILURE, new LinkedList<String>());
+            }
+            Collection<String> failures = currentTask.getOtherDataProperties().get(Constants.PROPERTY_NAME_FAILURE);
+            if(!failures.contains(failureName)) {
+                failures.add(failureName);
+            }
+            caughtFailure = true;
+        }
+        return caughtFailure;
     }
 
     private final MessageSender mPublisher;

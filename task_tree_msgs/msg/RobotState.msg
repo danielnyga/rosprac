@@ -3,7 +3,7 @@ string task_id
 string task_name
 string goal_context
 bool finished
-bool success
+string failure_name
 time current_time
 Tuple[] goal_properties
 Tuple[] designator_key_to_designator_id

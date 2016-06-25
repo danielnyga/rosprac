@@ -2,8 +2,8 @@
 
 (defun execute-perceive-and-grasp-mug-demo(&optional (environment :bullet))
   (execute-training-and-test-functions environment
-                                       #'create-perceive-and-grasp-mug-training-data
-                                       #'test-perceive-and-grasp-mug))
+                                       :training #'create-perceive-and-grasp-mug-training-data
+                                       :test #'test-perceive-and-grasp-mug))
 
 (defun create-perceive-and-grasp-mug-training-data(environment)
   (clean-and-spawn-kitchen-and-robot environment)

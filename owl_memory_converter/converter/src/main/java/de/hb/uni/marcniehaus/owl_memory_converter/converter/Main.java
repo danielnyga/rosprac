@@ -22,6 +22,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.Task;
 import org.ros.exception.RemoteException;
@@ -122,7 +123,7 @@ public class Main extends AbstractNodeMain
                                           ConversionResponse response)
                                 throws ServiceException {
                             try {
-                                startConversion(request.getOwlFileName(), 
+                                startConversion(request.getOwlFileName(),
 					request.getExtendOldModel());
                                 response.setSuccess(true);
                             } catch (Exception e) {
@@ -138,6 +139,7 @@ public class Main extends AbstractNodeMain
 
     private void startConversion(String owlFileName, boolean extendOldModel) 
     		throws Exception {
+        mNode.getLog().info("Starting conversion of " + owlFileName + "!");
         OwlConverter converter = new OwlConverter(this);
         boolean firstTask = true;
         for(Task rootTask : converter.getRootTasks(owlFileName)) {
@@ -145,7 +147,7 @@ public class Main extends AbstractNodeMain
                 mNumberOfPublishedStates = 0;
                 TriggerResponse tresponse = mStartTrainingTrigger.call(
                         mStartTrainingTrigger.newMessage());
-                SynchronousService.throwErrorIfTriggerFailed(
+                throwErrorIfTriggerFailed(
                         tresponse.getSuccess(), tresponse.getMessage());
                 converter.convert(rootTask);
                 LearningTriggerRequest request = mLearnTrigger.newMessage();
@@ -153,7 +155,7 @@ public class Main extends AbstractNodeMain
                 request.setNumberOfRequiredMessages(mNumberOfPublishedStates);
                 request.setExtendOldModel(extendOldModel || !firstTask);
                 LearningTriggerResponse lresponse = mLearnTrigger.call(request);
-                SynchronousService.throwErrorIfTriggerFailed(
+                throwErrorIfTriggerFailed(
                         lresponse.getSuccess(), lresponse.getMessage());
             } catch (Exception e) {
                 mNode.getLog().error("Caught Exception: " + e.getMessage());
@@ -178,17 +180,11 @@ public class Main extends AbstractNodeMain
         mLearnTrigger = new SynchronousService<>(tmpLearningTrigger);        
         mStatePublisher = node.newPublisher(
                 "robot_memory/state", RobotState._TYPE);
-        final Semaphore wait = new Semaphore(0);
-        node.getLog().info("Waiting for subscriber...");
-        mStatePublisher.addListener(new DefaultPublisherListener<RobotState>(){
-            @Override
-            public void onNewSubscriber(Publisher<RobotState> publisher, 
-                    SubscriberIdentifier subscriberIdentifier) {
-                wait.release();
-            }            
-        });
-        wait.acquire();
-        node.getLog().info("subscriber registered!");
+        while(mStatePublisher.getNumberOfSubscribers()==0) {
+            node.getLog().info("Waiting 1s until a subscriber is registered...");
+            Thread.sleep(1000);
+            node.getLog().info("subscriber registered!");
+        }
     }
 
     @Override
@@ -202,7 +198,7 @@ public class Main extends AbstractNodeMain
         mStatePublisher.publish(state);
         mNumberOfPublishedStates++;
         Thread.sleep(1);
-        //Bad workaround, but the message queue size is limited and 
+        //Bad workaround, but the message queue size is limited and
         //I cannot guarantee transport otherwise...
     }
 
@@ -224,18 +220,25 @@ public class Main extends AbstractNodeMain
         }
     }
 
+    private static void throwErrorIfTriggerFailed
+            (boolean success, String message) throws Exception{
+        if(!success) {
+            throw new Exception(message);
+        }
+    }
+
     private static class SynchronousService<Request, Response>{
         
         public SynchronousService(ServiceClient<Request,Response> client) {
-            mTrigger = client;
+            mService = client;
         }
         
         public Request newMessage() {
-            return mTrigger.newMessage();
+            return mService.newMessage();
         }
         
         public Response call(Request request) throws Exception {
-            mTrigger.call(request,
+            mService.call(request,
                     new ServiceResponseListener<Response>() {            
                 @Override
                 public void onSuccess(Response mt) {
@@ -254,15 +257,8 @@ public class Main extends AbstractNodeMain
                 throw mException;
             return mResponse;
         }
-                
-        public static void throwErrorIfTriggerFailed
-                (boolean success, String message) throws Exception{
-            if(!success) {
-                throw new Exception(message);
-            }
-        }
-        
-        private final ServiceClient<Request,Response> mTrigger;
+
+        private final ServiceClient<Request,Response> mService;
         private final Semaphore mSemaphore = new Semaphore(0);
         private Exception mException;
         private Response mResponse;

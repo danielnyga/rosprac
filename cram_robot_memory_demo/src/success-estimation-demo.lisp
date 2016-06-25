@@ -2,8 +2,8 @@
 
 (defun execute-success-estimation-demo(&optional (environment :bullet))
   (execute-training-and-test-functions environment
-                                       #'create-success-estimation-training-data
-                                       #'execute-success-estimation-test))
+                                       :training #'create-success-estimation-training-data
+                                       :test #'execute-success-estimation-test))
 
 (defun create-success-estimation-training-data(environment)
   (clean-and-spawn-kitchen-and-robot environment)
@@ -15,9 +15,9 @@
    (lambda()
      ;the following grasp tasks will fail:
      (pick-and-place :fork "CounterTop" "kitchen_sink_block_counter_top")                               
+     (pick-and-place :fork "CounterTop" "kitchen_sink_block_counter_top")                               
      (pick-and-place :mug "CounterTop" "kitchen_sink_block_counter_top")
      ;the following grasp tasks will succeed:
-     (pick-and-place :fork "Cupboard" "pancake_table")
      (pick-and-place :fork "Cupboard" "pancake_table")
      (pick-and-place :mug "CounterTop" "kitchen_island_counter_top"))))
 
@@ -43,7 +43,7 @@
      "Error probabilities for grasping a fork on kitchen_island_counter_top:~C~a"
      #\newline fork-prob)
     (assert (result-has-probability mug-prob nil 1.0))
-    (assert (result-has-probability fork-prob nil 0.66))))
+    (assert (result-has-probability fork-prob nil 0.33))))
 
 (cram-language:def-cram-function pick-and-place(obj-type loc-on loc-name)
   (cram-language:with-failure-handling

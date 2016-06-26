@@ -1,9 +1,7 @@
-in;Refrigerator;drawer_fridge_upper
-in;Drawer;drawer_oven_middle
-in;Drawer;drawer_fridge_lower
-in;Drawer;drawer_island_left_upper
-in;Drawer;drawer_island_right_upper
-in;Drawer;drawer_island_middle_upper
-on;Cupboard;kitchen_island
-on;Cupboard;kitchen_sink_block
-on;Cupboard;pancake_table
+in;Drawer;drawer_oven_middle;1.0;1.15;1.85;1.95;0.8
+in;Drawer;drawer_sinkblock_middle;1.1;1.2;0.7;1.0;0.5
+in;Refrigerator;drawer_fridge_upper;1.35;1.6;-0.95;-1.1;0.55
+in;Drawer;drawer_island_left_upper;-0.75;-0.55;0.85;1.0;0.5
+in;Drawer;drawer_island_right_upper;-0.75;-0.55;2.45;2.6;0.5
+on;CounterTop;kitchen_island_counter_top;-1.0;-1.3;0.6;2.8;0.9
+on;CounterTop;kitchen_sink_block_counter_top;1.4;1.5;-0.5;1.1;0.9

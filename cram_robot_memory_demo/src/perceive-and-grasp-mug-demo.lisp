@@ -9,9 +9,9 @@
 (defun create-perceive-and-grasp-mug-training-data(environment)
   (cram-robot-memory-test-utils:clean-and-spawn-kitchen-and-robot environment)
   (cram-robot-memory-test-utils:spawn-object
-   environment :mug-1 :mug '((-0.9 -0.6 0.8) (0 0 0 1)))
+   environment "mug-1" :mug '((-0.9 -0.6 0.8) (0 0 0 1)))
   (cram-robot-memory-test-utils:spawn-object
-   environment :mug-2 :mug '((1.5 0.9 0.9) (0 0 0 1)))
+   environment "mug-2" :mug '((1.5 0.9 0.9) (0 0 0 1)))
   (cram-robot-memory-test-utils:execute-in-environment
    environment
    #'(lambda()
@@ -23,7 +23,7 @@
 (defun test-perceive-and-grasp-mug(environment)
   (cram-robot-memory-test-utils:clean-and-spawn-kitchen-and-robot environment)
   (cram-robot-memory-test-utils:spawn-object
-   environment :mug-3 :mug '((-0.9 -0.6 0.8) (0 0 0 1)))
+   environment "mug-3" :mug '((-0.9 -0.6 0.8) (0 0 0 1)))
   (cram-robot-memory-test-utils:execute-in-environment environment #'perceive-and-grasp-mug))
 
 (cram-language:def-cram-function grasp-mug-at-pose(position orientation)

@@ -31,7 +31,8 @@
                                    ?w ?robot (("torso_lift_joint" 0.16825d0))))))))
 
 (defmethod spawn-object((environment (eql :bullet)) object-name object-type pose)
-  (bullet-reasoning-utilities:spawn-object object-name object-type :color '(1 1 1) :pose pose))
+  (let ((name (symbol-value (intern object-name "KEYWORD"))))
+    (bullet-reasoning-utilities:spawn-object name object-type :color '(0 0 1) :pose pose)))
 
 (defmethod execute-in-environment((environment (eql :bullet)) function)
   (cram-projection:with-projection-environment
@@ -40,13 +41,11 @@
 
 (defun open-cupboards(kitchen-urdf)
   (let*((urdf-01 (open-door kitchen-urdf "fridge_block_fridge_joint"))
-        (urdf-02 (open-drawer urdf-01 "fridge_block_drawer_fridge_bottom_joint"))
-        (urdf-03 (open-drawer urdf-02 "oven_block_drawer_oven_center_joint"))
-        (urdf-04 (open-drawer urdf-03 "island_block_drawer_island_col1_center_joint"))
-        (urdf-05 (open-drawer urdf-04 "island_block_drawer_island_col2_center_joint"))
-        (urdf-06 (open-drawer urdf-05 "island_block_drawer_island_col3_center_joint"))
-        (urdf-07 (open-drawer urdf-06 "sink_block_drawer_sink_col1_center_joint")))
-    urdf-07))
+        (urdf-02 (open-drawer urdf-01 "oven_block_drawer_oven_center_joint"))
+        (urdf-03 (open-drawer urdf-02 "island_block_drawer_island_col1_center_joint"))
+        (urdf-04 (open-drawer urdf-03 "island_block_drawer_island_col3_center_joint"))
+        (urdf-05 (open-drawer urdf-04 "sink_block_drawer_sink_col1_center_joint")))
+    urdf-05))
 
 (defun open-door(kitchen-urdf joint)
   (setf (slot-value (gethash joint (cl-urdf:joints kitchen-urdf))'cl-urdf:origin)

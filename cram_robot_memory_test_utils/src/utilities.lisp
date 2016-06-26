@@ -1,4 +1,4 @@
-(in-package :cram-robot-memory-demo)
+(in-package :cram-robot-memory-test-utils)
 
 (defun execute-training-and-test-functions(environment &key training test)
   (cond ((not (null training))

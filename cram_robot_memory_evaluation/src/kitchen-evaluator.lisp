@@ -1,13 +1,13 @@
 (in-package :cram-robot-memory-evaluation)
 
 (defun handle-objects-in-kitchen(kitchen-file-name &optional (environment :bullet))
-  (cram-robot-memory-demo::execute-training-and-test-functions
+  (cram-robot-memory-test-utils:execute-training-and-test-functions
    environment
    :training
    #'(lambda(environment)
        (print (concatenate 'string "Operating on kitchen " kitchen-file-name))
-       (cram-robot-memory-demo::clean-and-spawn-kitchen-and-robot environment)
-       (cram-robot-memory-demo::execute-in-environment
+       (cram-robot-memory-test-utils:clean-and-spawn-kitchen-and-robot environment)
+       (cram-robot-memory-test-utils:execute-in-environment
         environment
         (lambda()
           (with-open-file(kitchen-file kitchen-file-name)
@@ -41,7 +41,7 @@
             (bullet-pose `(,pos ,or))
             (object-name (format nil "~a-~a" (symbol-name object-type) index))
             (object-symb-name (symbol-value (intern object-name "KEYWORD"))))
-        (cram-robot-memory-demo::spawn-object
+        (cram-robot-memory-test-utils:spawn-object
          environment object-symb-name object-type bullet-pose)
         (spawn-objects (cdr objects) environment (+ index 1)))))
 

@@ -1,11 +1,12 @@
-(in-package :cram-robot-memory-demo)
+(in-package :cram-robot-memory-test-utils)
 
-;the code in this file is mainly copied from the spatial relations demo
+;the code in this file is mainly copied from the spatial relations demo or from gayas mail
 
 (defmethod clean-and-spawn-kitchen-and-robot((environment (eql :bullet)))
 	(let 
-	  ((robot-urdf (cl-urdf:parse-urdf (roslisp:get-param "robot_description_lowres")))
-	   (kitchen-urdf (cl-urdf:parse-urdf (roslisp:get-param "kitchen_description"))))
+	  ((kitchen-urdf (open-cupboards (cl-urdf:parse-urdf
+                                    (roslisp:get-param "kitchen_description"))))
+     (robot-urdf (cl-urdf:parse-urdf (roslisp:get-param "robot_description_lowres"))))
 	  (cram-prolog:prolog `(and 
                           (cram-bullet-reasoning:clear-bullet-world)
                           (cram-bullet-reasoning:bullet-world ?w)
@@ -36,6 +37,30 @@
   (cram-projection:with-projection-environment
       projection-process-modules::pr2-bullet-projection-environment
       (cram-language:top-level (funcall function))))
+
+(defun open-cupboards(kitchen-urdf)
+  (let*((urdf-01 (open-door kitchen-urdf "fridge_block_fridge_joint"))
+        (urdf-02 (open-drawer urdf-01 "fridge_block_drawer_fridge_bottom_joint"))
+        (urdf-03 (open-drawer urdf-02 "oven_block_drawer_oven_center_joint"))
+        (urdf-04 (open-drawer urdf-03 "island_block_drawer_island_col1_center_joint"))
+        (urdf-05 (open-drawer urdf-04 "island_block_drawer_island_col2_center_joint"))
+        (urdf-06 (open-drawer urdf-05 "island_block_drawer_island_col3_center_joint"))
+        (urdf-07 (open-drawer urdf-06 "sink_block_drawer_sink_col1_center_joint")))
+    urdf-07))
+
+(defun open-door(kitchen-urdf joint)
+  (setf (slot-value (gethash joint (cl-urdf:joints kitchen-urdf))'cl-urdf:origin)
+        (cl-transforms:make-transform
+         (cl-transforms:make-identity-vector)
+         (cl-transforms:axis-angle->quaternion (cl-transforms:make-3d-vector 0 0 1) 2.0)))
+  kitchen-urdf)
+
+(defun open-drawer(kitchen-urdf joint)
+  (setf (slot-value (gethash joint (cl-urdf:joints kitchen-urdf)) 'cl-urdf:origin)
+        (cl-transforms:make-transform
+         (cl-transforms:make-3d-vector 0.4 0 0)
+         (cl-transforms:make-identity-rotation)))
+  kitchen-urdf)
 
 (cram-prolog:def-fact-group costmap-metadata ()
   (cram-prolog:<- (location-costmap:costmap-size 12 12))

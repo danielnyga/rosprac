@@ -2,5 +2,5 @@
 
 (defpackage cram-robot-memory-evaluation
   (:nicknames :crme)
-  (:use #:common-lisp #:roslisp)
+  (:use #:common-lisp)
   (:export handle-objects-in-kitchen))

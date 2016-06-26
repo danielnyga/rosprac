@@ -1,4 +1,4 @@
-(in-package :cram-robot-memory-demo)
+(in-package :cram-robot-memory-test-utils)
 
 (defgeneric spawn-object(environment object-name object-type pose))
 

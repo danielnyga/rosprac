@@ -1,16 +1,19 @@
 (in-package :cram-robot-memory-demo)
 
 (defun execute-success-estimation-demo(&optional (environment :bullet))
-  (execute-training-and-test-functions environment
-                                       :training #'create-success-estimation-training-data
-                                       :test #'execute-success-estimation-test))
+  (cram-robot-memory-test-utils:execute-training-and-test-functions
+   environment
+   :training #'create-success-estimation-training-data
+   :test #'execute-success-estimation-test))
 
 (defun create-success-estimation-training-data(environment)
-  (clean-and-spawn-kitchen-and-robot environment)
+  (cram-robot-memory-test-utils:clean-and-spawn-kitchen-and-robot environment)
   ;Scenario: Grasp an expensive object (e.g. an expensive mug or plate...)
-  (spawn-object environment 'fork-1 :fork '((-0.9  0.0 0.75) (0 0 1 1)))
-  (spawn-object environment 'mug-1 :mug '((-0.9 1.5 0.9) (0 0 0 1)))
-  (execute-in-environment
+  (cram-robot-memory-test-utils:spawn-object
+   environment 'fork-1 :fork '((-0.9  0.0 0.75) (0 0 1 1)))
+  (cram-robot-memory-test-utils:spawn-object
+   environment 'mug-1 :mug '((-1.2 1.5 0.9) (0 0 0 1)))
+  (cram-robot-memory-test-utils:execute-in-environment
    environment
    (lambda()
      ;the following grasp tasks will fail:

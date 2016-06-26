@@ -1,5 +1,5 @@
 (asdf:defsystem cram-robot-memory-evaluation
-  :depends-on (cram-robot-memory-demo)
+  :depends-on (cram-robot-memory-test-utils)
   :components
   ((:module "src"
     :components

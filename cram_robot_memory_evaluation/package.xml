@@ -6,6 +6,6 @@
   <maintainer email="mniehaus@informatik.uni-bremen.de">Marc Niehaus</maintainer>
   <license>BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
-  <depend>cram_robot_memory_demo</depend>
+  <depend>cram_robot_memory_test_utils</depend>
   <export></export>
 </package>

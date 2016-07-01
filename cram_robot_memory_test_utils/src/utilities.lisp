@@ -1,11 +1,11 @@
 (in-package :cram-robot-memory-test-utils)
 
-(defun execute-training-and-test-functions(environment &key training test)
+(defun execute-training-and-test-functions(environment &key training test extend-existing-mlns)
   (cond ((not (null training))
          (roslisp-utilities::startup-ros)
          (cram-robot-memory:start-learning)
          (funcall training environment)
-         (cram-robot-memory:complete-learning nil)
+         (cram-robot-memory:complete-learning extend-existing-mlns)
          (roslisp-utilities::shutdown-ros)))
   (cond ((not (null test))
          (roslisp-utilities::startup-ros)

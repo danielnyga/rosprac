@@ -26,10 +26,10 @@ def main():
 
 
 def sample_kitchens(kitchen_sampler, number_of_kitchens, objects_per_kitchen, output_directory):
-    for i in range(0, number_of_kitchens):
+    for i in range(1, number_of_kitchens+1):
         kitchen = LISPConverter.convert_to_lisp(kitchen_sampler.sample_kitchen_objects(objects_per_kitchen))
         digits = 1+int(math.log10(number_of_kitchens))
-        filename = ("{0}/kitchen-{1:" + str(digits) + "d}.lisp").format(output_directory, i)
+        filename = ("{0}/kitchen-{1:0" + str(digits) + "d}.lisp").format(output_directory, i)
         with open(filename, "w") as f:
             f.write(kitchen)
 

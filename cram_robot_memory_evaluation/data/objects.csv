@@ -1,6 +1,6 @@
-plate;Drawer;CounterTop
-fork;Drawer;CounterTop
-knife;Drawer;CounterTop
+plate;Drawer;CounterTop;Dishwasher
+fork;Drawer;CounterTop;Dishwasher
+knife;Drawer;CounterTop;Dishwasher
 mug;Drawer;CounterTop
 pot;Drawer;CounterTop
 bowl;Drawer;CounterTop

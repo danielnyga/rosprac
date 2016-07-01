@@ -9,9 +9,15 @@
 )
 
 (defun complete-learning(extend-old-models)
-  (funcall (find-symbol "EXTRACT-OWL-FILE" "BELIEFSTATE") "log.owl")
-  (funcall (find-symbol "ENABLE-LOGGING" "BELIEFSTATE") nil)
-  (let ((convert-service-name "owl_memory_converter/convert"))
+  (let ((convert-service-name "owl_memory_converter/convert")
+        (owl-file-path (concatenate
+                        'string
+                        (directory-namestring
+                         (ros-load:ros-package-path "cram_robot_memory"))
+                        "/logs/robot_memory/exp-0/log.owl")))
+    (if (probe-file owl-file-path) (delete-file owl-file-path))
+    (funcall (find-symbol "EXTRACT-OWL-FILE" "BELIEFSTATE") "log.owl")
+    (funcall (find-symbol "ENABLE-LOGGING" "BELIEFSTATE") nil)   
     (cond  ((not (wait-for-service convert-service-name 30))
             (roslisp:ros-error (cram-rosmln) "timeout while waiting for service ~a!"
                                convert-service-name)
@@ -19,8 +25,8 @@
            ((not (owl_memory_converter-srv:success
                   (roslisp:call-service convert-service-name
                                         'owl_memory_converter-srv:Conversion
-					:extend_old_model extend-old-models
+                                        :extend_old_model extend-old-models
                                         :owl_file_name
-                                        "../logs/robot_memory/exp-0/log.owl")))
+                                        owl-file-path)))
             (cram-language:fail 'learning-failed))
            (t t))))

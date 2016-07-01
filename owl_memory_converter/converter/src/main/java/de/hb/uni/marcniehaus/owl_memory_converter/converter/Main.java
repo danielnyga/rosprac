@@ -18,11 +18,9 @@ package de.hb.uni.marcniehaus.owl_memory_converter.converter;
 
 import com.google.common.collect.Lists;
 import java.io.File;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ThreadFactory;
 
 import de.hb.uni.marcniehaus.owl_memory_converter.tasktree.Task;
 import org.ros.exception.RemoteException;
@@ -30,7 +28,6 @@ import org.ros.exception.ServiceException;
 import org.ros.exception.ServiceNotFoundException;
 import org.ros.internal.loader.CommandLineLoader;
 import org.ros.internal.message.Message;
-import org.ros.internal.node.topic.SubscriberIdentifier;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
 import org.ros.node.ConnectedNode;
@@ -40,7 +37,6 @@ import org.ros.node.NodeMainExecutor;
 import org.ros.node.service.ServiceClient;
 import org.ros.node.service.ServiceResponseBuilder;
 import org.ros.node.service.ServiceResponseListener;
-import org.ros.node.topic.DefaultPublisherListener;
 import org.ros.node.topic.Publisher;
 import owl_memory_converter.Conversion;
 import owl_memory_converter.ConversionRequest;
@@ -128,8 +124,8 @@ public class Main extends AbstractNodeMain
                                 response.setSuccess(true);
                             } catch (Exception e) {
                                 connectedNode.getLog().error(
-                                        "Caught Exception: " + e.getMessage()
-                                );
+                                        "Caught Exception: " + e.getMessage());
+                                e.printStackTrace();
                                 response.setSuccess(false);
                             }
                         }
@@ -140,6 +136,7 @@ public class Main extends AbstractNodeMain
     private void startConversion(String owlFileName, boolean extendOldModel) 
     		throws Exception {
         mNode.getLog().info("Starting conversion of " + owlFileName + "!");
+        waitUntilFileHasBeenWritten(owlFileName);
         OwlConverter converter = new OwlConverter(this);
         boolean firstTask = true;
         for(Task rootTask : converter.getRootTasks(owlFileName)) {
@@ -163,6 +160,19 @@ public class Main extends AbstractNodeMain
             }
             firstTask = false;
         }
+    }
+
+    private void waitUntilFileHasBeenWritten(String filename) throws Exception{
+        long newLength = new File(filename).exists() ?
+                new File(filename).length() : 0;
+        long oldLength;
+        do {
+            oldLength = newLength;
+            mNode.getLog().info("waiting 1s for the owl file...");
+            Thread.sleep(1000);
+            newLength = new File(filename).exists() ?
+                    new File(filename).length() : 0;
+        } while(newLength>0 && oldLength != newLength);
     }
 
     private void closeCommunication() {      

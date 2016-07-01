@@ -175,7 +175,13 @@ public class OWLExtractor {
             OWLLogElement nextSubtaskObject=mElements.get(subTask.getIRI());
             if(nextSubtaskObject==null || 
                     !(nextSubtaskObject instanceof Task)){
-                throw new Exception("Invalid reference");
+                String preciseMessage =
+                        "next sub task of " + task.getIRI() + " is null!";
+                if(nextSubtaskObject!=null) {
+                    preciseMessage = "invalid task type of " +
+                            nextSubtaskObject.getClass().getName();
+                }
+                throw new Exception("Invalid reference ("+preciseMessage+")");
             }
             ((Task) nextSubtaskObject).setParentTask(taskObject);
             if(filteredElements.contains(getClassName(subTask))) {

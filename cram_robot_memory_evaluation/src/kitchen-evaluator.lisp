@@ -1,8 +1,11 @@
 (in-package :cram-robot-memory-evaluation)
 
-(defun handle-objects-in-kitchen(kitchen-file-name &optional (environment :bullet))
+(defun handle-objects-in-kitchen(kitchen-file-name
+                                 extend-existing-mlns
+                                 &optional (environment :bullet))
   (cram-robot-memory-test-utils:execute-training-and-test-functions
    environment
+   :extend-existing-mlns extend-existing-mlns
    :training
    #'(lambda(environment)
        (cram-robot-memory-test-utils:clean-and-spawn-kitchen-and-robot environment)
@@ -57,18 +60,12 @@
                    (failure-name (type-of e1))
                    (updated-failures (cons `(,object-name ,failure-name) failure-information)))
                (roslisp:ros-info (cram-robot-memory-evaluation) "Logging error ~a" e1)
-               (return (grasp-objects-recursively (cdr objects) updated-failures))))
-           (cram-designators:designator-error (e2)
-             (let*((object-name (cram-designators:desig-prop-value (car objects) :type))
-                   (failure-name (type-of e2))
-                   (updated-failures (cons `(,object-name ,failure-name) failure-information)))
-               (roslisp:ros-info (cram-robot-memory-evaluation) "Logging error ~a" e2)
                (return (grasp-objects-recursively (cdr objects) updated-failures)))))      
-        (cram-language-designator-support:with-designators
-            ((put-location :location `((:on "Cupboard") (:name "pancake_table"))))
-          (let*((object (car objects))
-                (perceived (cram-plan-library:perceive-object 'cram-plan-library:a object)))
-           (unless (cram-designators:desig-equal object perceived)
-              (cram-designators:equate object perceived))
-            (cram-plan-library:achieve `(cram-plan-library:loc ,object ,put-location))
-            (grasp-objects-recursively (cdr objects) failure-information))))))
+        (let*((object (car objects))
+              (perceived (cram-plan-library:perceive-object 'cram-plan-library:a object))
+              (put-location (cram-designators:make-designator
+                             :location '((:on "Cupboard") (:name "pancake_table")))))
+          (unless (cram-designators:desig-equal object perceived)
+            (cram-designators:equate object perceived))
+          (cram-plan-library:achieve `(cram-plan-library:loc ,object ,put-location))
+          (grasp-objects-recursively (cdr objects) failure-information)))))

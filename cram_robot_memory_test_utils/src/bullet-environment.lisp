@@ -44,8 +44,10 @@
         (urdf-02 (open-drawer urdf-01 "oven_block_drawer_oven_center_joint"))
         (urdf-03 (open-drawer urdf-02 "island_block_drawer_island_col1_center_joint"))
         (urdf-04 (open-drawer urdf-03 "island_block_drawer_island_col3_center_joint"))
-        (urdf-05 (open-drawer urdf-04 "sink_block_drawer_sink_col1_center_joint")))
-    urdf-05))
+        (urdf-05 (open-drawer urdf-04 "sink_block_drawer_sink_col1_center_joint"))
+        (urdf-06 (remove-door urdf-05 "drawer_oven_oven_link"))
+        (urdf-07 (remove-door urdf-06 "drawer_sink_col2_link")))    
+    urdf-07))
 
 (defun open-door(kitchen-urdf joint)
   (setf (slot-value (gethash joint (cl-urdf:joints kitchen-urdf))'cl-urdf:origin)
@@ -60,6 +62,18 @@
          (cl-transforms:make-3d-vector 0.4 0 0)
          (cl-transforms:make-identity-rotation)))
   kitchen-urdf)
+
+(defun remove-door(kitchen-urdf door-name)
+  (setf (slot-value (gethash (concatenate 'string "handle_" door-name)
+                             (slot-value kitchen-urdf 'cl-urdf:links))
+                    'cl-urdf:collision)
+        nil)
+  (setf (slot-value (gethash (concatenate 'string door-name)
+                             (slot-value kitchen-urdf 'cl-urdf:links))
+                    'cl-urdf:collision)
+        nil)
+  kitchen-urdf)
+  
 
 (cram-prolog:def-fact-group costmap-metadata ()
   (cram-prolog:<- (location-costmap:costmap-size 12 12))

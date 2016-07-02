@@ -327,9 +327,11 @@ public class OwlConverter {
         return String.format("%.3f", value);
     }
 
-    private static void assignFailures(Task rootTask) throws Exception {
+    private void assignFailures(Task rootTask) throws Exception {
         for(PreAndPostOrderTaskIterator it = new  PreAndPostOrderTaskIterator(rootTask); it.hasNext();) {
             it.next(); //TODO: Change iterator behavior: Using it as normal iterator with "next" does not work...
+            if(!it.currentHasBeenVisitedBefore())
+                continue;
             Task task = it.current();
             if(task.getOtherObjectProperties().containsKey(Constants.PROPERTY_NAME_EVENT_FAILURE)) {
                 for(LogElement failure : task.getOtherObjectProperties().get(Constants.PROPERTY_NAME_EVENT_FAILURE)) {
@@ -346,7 +348,7 @@ public class OwlConverter {
         }
     }
 
-    private static boolean assignFailuresRecursively(Task currentTask, String failureId, String failureName) {
+    private boolean assignFailuresRecursively(Task currentTask, String failureId, String failureName) throws Exception {
         boolean caughtFailure = false;
         if(currentTask.getOtherObjectProperties().containsKey(Constants.PROPERTY_NAME_CAUGHT_FAILURE)) {
             for(LogElement cf : currentTask.getOtherObjectProperties().get(Constants.PROPERTY_NAME_CAUGHT_FAILURE)) {
@@ -361,8 +363,10 @@ public class OwlConverter {
                 currentTask.getOtherDataProperties().put(Constants.PROPERTY_NAME_FAILURE, new LinkedList<String>());
             }
             Collection<String> failures = currentTask.getOtherDataProperties().get(Constants.PROPERTY_NAME_FAILURE);
-            if(!failures.contains(failureName)) {
+            if(!failures.contains(failureName) && failures.size()==0) {
                 failures.add(failureName);
+            } else if (failures.contains(failureName)) {
+                mPublisher.logWarning("There is more than one failure failures for " + currentTask.getOwlInstanceName());
             }
             caughtFailure = true;
         }

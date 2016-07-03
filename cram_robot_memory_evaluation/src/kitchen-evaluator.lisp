@@ -1,5 +1,22 @@
 (in-package :cram-robot-memory-evaluation)
 
+(defun execute-training(kitchen-file-name
+                        extend-existing-mlns
+                        &optional (environment :bullet))
+  (handle-objects-in-kitchen kitchen-file-name
+                             extend-existing-mlns
+                             environment))
+
+(defun execute-comparison-test(kitchen-file-name
+                               &optional (environment :bullet))
+;TODO
+)
+    
+(defun execute-completion-test(kitchen-file-name
+                               &optional (environment :bullet))
+;TODO
+)
+
 (defun handle-objects-in-kitchen(kitchen-file-name
                                  extend-existing-mlns
                                  &optional (environment :bullet))

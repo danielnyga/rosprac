@@ -13,7 +13,8 @@ def main():
     parser.add_argument("--dpmax", nargs="?", default=2, type=int, help="maximum number of dummy properties per object")
     parser.add_argument("--dkpop", nargs="?", default=5, type=int, help="population of dummy keys")
     parser.add_argument("--dvpop", nargs="?", default=5, type=int, help="population of dummy values")
-    parser.add_argument("--kitchens", nargs="?", default=10, type=int, help="number of kitchens to sample")
+    parser.add_argument("--train-kitchens", nargs="?", default=10, type=int, help="sampled kitchens for training")
+    parser.add_argument("--test-kitchens", nargs="?", default=10, type=int, help="sampled kitchens for test")
     parser.add_argument("--objects", nargs="?", default=10, type=int, help="number of objects per kitchen")
     parser.add_argument("--locations", nargs="?", default="locations.csv",
                         type=str, help="csv file specifying the existing locations")
@@ -22,16 +23,17 @@ def main():
     parser.add_argument("--outdir", nargs="?", default="kitchens", type=str, help="output directory")
     r = vars(parser.parse_args())
     sampler = SimpleKitchenSampler(r["dpmin"], r["dpmax"], r["dkpop"], r["dvpop"], r["objtypes"], r["locations"])
-    sample_kitchens(sampler, r["kitchens"], r["objects"], r["outdir"])
+    sample_kitchens(sampler, r["train_kitchens"], r["test_kitchens"], r["objects"], r["outdir"])
 
 
-def sample_kitchens(kitchen_sampler, number_of_kitchens, objects_per_kitchen, output_directory):
-    for i in range(1, number_of_kitchens+1):
-        kitchen = LISPConverter.convert_to_lisp(kitchen_sampler.sample_kitchen_objects(objects_per_kitchen))
-        digits = 1+int(math.log10(number_of_kitchens))
-        filename = ("{0}/kitchen-{1:0" + str(digits) + "d}.lisp").format(output_directory, i)
-        with open(filename, "w") as f:
-            f.write(kitchen)
+def sample_kitchens(kitchen_sampler, train_kitchens, test_kitchens, objects_per_kitchen, output_directory):
+    for prefix, train, number_of_kitchens in [("training-", True, train_kitchens), ("test-", False, test_kitchens)]:
+        for i in range(1, number_of_kitchens+1):
+            kitchen = LISPConverter.convert_to_lisp(kitchen_sampler.sample_kitchen_objects(objects_per_kitchen), train)
+            digits = 1+int(math.log10(number_of_kitchens))
+            filename = ("{0}/" + prefix + "kitchen-{1:0" + str(digits) + "d}.lisp").format(output_directory, i)
+            with open(filename, "w") as f:
+                f.write(kitchen)
 
 
 class SimpleKitchenSampler(object):
@@ -117,17 +119,19 @@ class LISPConverter(object):
     make_designator_str = "(cram-designators::make-designator "
 
     @staticmethod
-    def convert_to_lisp(kitchen_objects):
-        objects = ["`(" + LISPConverter.get_bullet_pose(o) + " ," + LISPConverter.convert_object_designator(o) + ")"
+    def convert_to_lisp(kitchen_objects, include_location_designators):
+        objects = ["`(" + LISPConverter.get_bullet_pose(o) + " ," +
+                          LISPConverter.convert_object_designator(o, include_location_designators) + ")"
                    for o in kitchen_objects]
         return reduce(lambda rest, o: rest + "\n," + o, objects, "`(") + ")"
 
     @staticmethod
-    def convert_object_designator(kitchen_object):
+    def convert_object_designator(kitchen_object, include_location_designator):
         return LISPConverter.make_designator_str + ":object `(" +\
                "(:type :" + kitchen_object.object_type + ")" +\
                reduce(lambda rest, kv: rest + "(:"+kv[0]+" "+kv[1]+")", kitchen_object.dummy_properties.items(),"") +\
-               "(:at ," + LISPConverter.convert_location_designator(kitchen_object.location) + ")))"
+               ("(:at ," + LISPConverter.convert_location_designator(kitchen_object.location) + ")))"
+                if include_location_designator else "))")
 
     @staticmethod
     def convert_location_designator(object_location):

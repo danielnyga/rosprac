@@ -14,27 +14,35 @@ class MlnType(object):
     DESIGNATOR = "designator"
 
 
-def create_and_save_mlns(root_nodes, extend_old_mlns=False, learner=None, debug=False, logger=None):
-    root_nodes = task_tree_preprocessor.preprocess_task_tree(root_nodes)
+class Configuration(object):
+    def __init__(self, extend_old_mlns, include_perform=False, debug=False, logger=None, learner=None):
+        self.extend_old_mlns = extend_old_mlns
+        self.include_perform = include_perform
+        self.debug = debug
+        self.logger = logger
+        self.learner = learner
+
+def create_and_save_mlns(root_nodes, configuration):
+    root_nodes = task_tree_preprocessor.preprocess_task_tree(root_nodes, configuration.include_perform)
     dbs = database_creator.create_database_collection(root_nodes)
     mlns = [
         _create_task_and_designator_mln(dbs),
         _create_designator_mln(dbs)
     ]
     FILENAME_PREFIX = "../learnt_mlns/"
-    if not extend_old_mlns and os.path.isdir(FILENAME_PREFIX):
+    if not configuration.extend_old_mlns and os.path.isdir(FILENAME_PREFIX):
         shutil.rmtree(FILENAME_PREFIX)
     if not os.path.isdir(FILENAME_PREFIX):
         os.mkdir(FILENAME_PREFIX)
-    if debug:
-        if logger is not None:
+    if configuration.debug:
+        if configuration.logger is not None:
             for node in root_nodes:
-                logger.loginfo(node.tree_as_string())
+                configuration.logger.loginfo(node.tree_as_string())
         for mln in mlns:
             mln.save(FILENAME_PREFIX + mln.name + "_before_learning")
         dbs.save(FILENAME_PREFIX + "train")
     for mln in mlns:
-        _learn_weights_and_save_mln(mln, dbs, learner, FILENAME_PREFIX)
+        _learn_weights_and_save_mln(mln, dbs, configuration.learner, FILENAME_PREFIX)
 
 
 def _create_task_and_designator_mln(databases):

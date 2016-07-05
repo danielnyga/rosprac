@@ -42,13 +42,11 @@
 
 (defun open-cupboards(kitchen-urdf)
   (let*((urdf-01 (open-door kitchen-urdf "fridge_block_fridge_joint"))
-        (urdf-02 (open-drawer urdf-01 "oven_block_drawer_oven_center_joint"))
-        (urdf-03 (open-drawer urdf-02 "island_block_drawer_island_col1_center_joint"))
-        (urdf-04 (open-drawer urdf-03 "island_block_drawer_island_col3_center_joint"))
-        (urdf-05 (open-drawer urdf-04 "sink_block_drawer_sink_col1_center_joint"))
-        (urdf-06 (remove-door urdf-05 "drawer_oven_oven_link"))
-        (urdf-07 (remove-door urdf-06 "drawer_sink_col2_link")))    
-    urdf-07))
+        (urdf-02 (open-drawer urdf-01 "island_block_drawer_island_col1_center_joint"))
+        (urdf-03 (open-drawer urdf-02 "island_block_drawer_island_col3_center_joint"))
+        (urdf-04 (remove-door urdf-03 "drawer_oven_oven_link"))
+        (urdf-05 (remove-door urdf-04 "drawer_sink_col2_link")))    
+    urdf-05))
 
 (defun open-door(kitchen-urdf joint)
   (setf (slot-value (gethash joint (cl-urdf:joints kitchen-urdf))'cl-urdf:origin)

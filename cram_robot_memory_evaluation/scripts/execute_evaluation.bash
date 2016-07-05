@@ -6,13 +6,11 @@ function start_ros_environment {
 	roslaunch cram_robot_memory_demo demo.launch&
 	ROSLAUNCH_PID=$!
 	sleep 30
-print Started
 }
 
 function kill_ros_environment {
 	kill $ROSLAUNCH_PID
 	sleep 10
-print stopped
 }
 
 SCRIPT_FILE=`readlink -f $0`
@@ -21,7 +19,7 @@ cd $SCRIPT_DIRECTORY/..
 
 rm -rf kitchens
 mkdir kitchens
-$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 1 --dkpop 5 --dvpop 5 --train-kitchens 1 --test-kitchens 1 --objects 6
+$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 15 --test-kitchens 5 --objects 10
 
 EXTEND_MLNS="false"
 for KITCHEN in kitchens/training-kitchen*; do

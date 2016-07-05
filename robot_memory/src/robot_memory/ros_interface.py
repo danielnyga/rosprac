@@ -1,7 +1,9 @@
 import time
+import argparse
 import threading
 import traceback
 import rospy
+from copy import copy
 from robot_memory.task_tree import TaskTreeNode, TaskTreeGoalNode, Designator, DesignatorType
 from robot_memory.pracmln_adapter import PracmlnAdapter
 from robot_memory import mln_creator
@@ -11,14 +13,15 @@ from task_tree_msgs.srv import LearningTrigger, LearningTriggerResponse
 from sys import argv
 
 
-def start_ros_service():
-    service = RobotMemoryService()
+def start_ros_service(argv):
+    service = RobotMemoryService(argv)
     service.run()
 
 
 class RobotMemoryService(object):
-    def __init__(self):
+    def __init__(self, argv):
         self.__mutex = threading.Lock()
+        self.__configuration = self.__parse_argv(argv)
 
     def run(self):
         rospy.init_node("robot_memory")
@@ -27,6 +30,15 @@ class RobotMemoryService(object):
         rospy.Subscriber("robot_memory/state", RobotState, self.__robot_state_received)
         rospy.loginfo("Entering main loop...")
         rospy.spin()
+
+    def __parse_argv(self, argv):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--debug", nargs="?", default=False, const=True, type=bool, help="enable debug output")
+        parser.add_argument("--include-perform", nargs="?", default=False, const=True, type=bool,
+                            help="record performed action designators in the mln")
+        result = vars(parser.parse_args(argv[1:]))
+        return mln_creator.Configuration(True, result["include_perform"], result["debug"], rospy)
+
 
     def __robot_state_received(self, robot_state):
         with self.__mutex:
@@ -57,7 +69,9 @@ class RobotMemoryService(object):
             root_nodes = _create_task_trees(messages)
 #            learner = PracmlnAdapter()
             learner = None
-            mln_creator.create_and_save_mlns(root_nodes, request.extend_old_model, learner, debug, rospy)
+            configuration = copy(self.__configuration)
+            configuration.extend_old_mlns = request.extend_old_model
+            mln_creator.create_and_save_mlns(root_nodes, configuration)
         except Exception:
             rospy.logfatal(traceback.format_exc())
             return LearningTriggerResponse(success=False)

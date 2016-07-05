@@ -16,16 +16,16 @@ class Statistics:
         successful = list(filter(lambda l: l[Columns.success] == "T", results))
         unsuccessful = list(filter(lambda l: l[Columns.success] == "NIL", results))
         assert (len(successful) + len(unsuccessful) == len(results))
-        self.grasp_success = len(successful) / len(results)
+        self.grasp_success = len(successful) * 1.0 / len(results)
         self.estimated_success = sum([float(l[Columns.estimated_success]) for l in results]) / len(results)
-        self.successful_tries = None if len(successful) == 0 \
-            else sum([float(l[Columns.tries]) for l in successful]) / len(successful)
-        self.unsuccessful_tries = None if len(unsuccessful) == 0 \
-            else sum([float(l[Columns.tries]) for l in unsuccessful]) / len(unsuccessful)
-        self.correctly_guessed = len([l for l in results if
+        self.successful_tries = (None if len(successful) == 0 \
+            else sum([float(l[Columns.tries]) for l in successful])) * 1.0 / len(successful)
+        self.unsuccessful_tries = (None if len(unsuccessful) == 0 \
+            else sum([float(l[Columns.tries]) for l in unsuccessful])) * 1.0 / len(unsuccessful)
+        self.correctly_guessed = (len([l for l in results if
                                       float(l[Columns.estimated_success]) > 0.5 and l[Columns.success] == "T" or
-                                      float(l[Columns.estimated_success]) < 0.5 and l[Columns.success] == "NIL"]) \
-                                 / len(results)
+                                      float(l[Columns.estimated_success]) < 0.5 and l[Columns.success] == "NIL"]))\
+                                 * 1.0 / len(results)
 
     def __str__(self):
         return "{0:50}{1}\n".format("Successful grasps (%):", self.grasp_success) + \

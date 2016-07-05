@@ -1,7 +1,7 @@
 import re
 
 
-def preprocess_task_tree(root_nodes):
+def preprocess_task_tree(root_nodes, include_perform):
     pruned_tree = _remove_nodes(root_nodes, [
         lambda n: n.name.lower() == "with-failure-handling",
         lambda n: n.name.lower() == "with-designators",
@@ -11,7 +11,8 @@ def preprocess_task_tree(root_nodes):
         lambda n: n.name.lower() == "find-objects",
         lambda n: n.name.lower() == "at-location",
         lambda n: n.name.lower() == "monitor-action",
-    ],[
+    ] + ([lambda n: n.name.lower() == "perform"] if not include_perform else [])
+    ,[
         lambda k, v: k == "PARAMETERS" and "\n" in v
     ])
     return _apply_value_replacements(pruned_tree, [

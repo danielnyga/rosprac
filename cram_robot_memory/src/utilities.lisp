@@ -1,19 +1,20 @@
 (in-package :cram-robot-memory)
 
-(defun get-designator-type(designator)
-  (let* ((class-name (symbol-name (type-of designator)))
-         (designator-name (subseq class-name 0 (search "-DESIGNATOR" class-name))))
-    (string-downcase designator-name)))
-
-(defun get-designator(designator-properties)
-  (labels((split-recursively(rest pattern to-return)
+(defun split-recursively(rest pattern &optional to-return)
             (let((pos (search pattern rest)))
               (if (null pos)
                   (concatenate 'list to-return `(,rest))
                   (split-recursively (subseq rest (+ pos (length pattern)))
                                      pattern
                                      (concatenate 'list to-return `(,(subseq rest 0 pos)))))))
-          (split-keys(properties)
+
+(defun get-designator-type(designator)
+  (let* ((class-name (symbol-name (type-of designator)))
+         (designator-name (subseq class-name 0 (search "-DESIGNATOR" class-name))))
+    (string-downcase designator-name)))
+
+(defun get-designator(designator-properties)
+  (labels((split-keys(properties)
             (map 'list
                  #'(lambda(kv) (cons (split-recursively (car kv) "::" nil) (cdr kv)))
                  properties))

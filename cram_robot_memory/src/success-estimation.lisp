@@ -31,7 +31,15 @@
                                 designator-props
                                 (format nil "Desig~S" desig-idx)
                                 prop-idx "Task" key))
-            (combined-evidence (concatenate 'list property-evidence result))
-            (new-start-idx (+ prop-idx (length designator-props))))
+            (add-empty-prop (> 2 (length designator-props)))
+            (next-prop-idx (+ prop-idx (length designator-props)))
+            (evidence
+              (if add-empty-prop
+                  (cons
+                   (format nil "designatorProperty(Prop~D,Desig~D)" next-prop-idx desig-idx)
+                   property-evidence)
+                  property-evidence))
+            (combined-evidence (concatenate 'list evidence result))
+            (new-start-idx (+ next-prop-idx (if add-empty-prop 1 0)))) 
         (get-multiple-designator-evidence (cdr remaining-args) combined-evidence
                                           (+ desig-idx 1) new-start-idx))))

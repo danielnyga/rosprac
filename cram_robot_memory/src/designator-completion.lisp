@@ -24,7 +24,7 @@
      (complete-key (make-completion-args :rosmln-config config
                                          :designator-properties properties
                                          :evidence evidence
-                                         :seen-keys nil
+                                         :number-of-probable-keys nil
                                          :tried-properties nil
                                          :target-function do-sth-with)))))
 
@@ -38,7 +38,7 @@
   rosmln-config
   designator-properties
   evidence
-  seen-keys
+  number-of-probable-keys
   tried-properties
   target-function)
 
@@ -46,13 +46,13 @@
   (comp-args &key (rosmln-config (completion-args-rosmln-config comp-args))
                   (designator-properties (completion-args-designator-properties comp-args))
                   (evidence (completion-args-evidence comp-args))
-                  (seen-keys (completion-args-seen-keys comp-args))
+                  (number-of-probable-keys (completion-args-number-of-probable-keys comp-args))
                   (tried-properties (completion-args-tried-properties comp-args))
                   (target-function (completion-args-target-function comp-args)))
   (make-completion-args :rosmln-config rosmln-config
                         :designator-properties designator-properties
                         :evidence evidence
-                        :seen-keys seen-keys
+                        :number-of-probable-keys number-of-probable-keys
                         :tried-properties tried-properties
                         :target-function target-function))
 
@@ -83,23 +83,26 @@
   (let*((tried-props (completion-args-tried-properties comp-args))
         (desig-props (completion-args-designator-properties comp-args))
         (target-func (completion-args-target-function comp-args))
-        (seen-keys (completion-args-seen-keys comp-args))
+        (number-of-keys-before (completion-args-number-of-probable-keys comp-args))
         (best-key (get-argument-from-best-result results 1))
         (best-prob (car (car results)))
+        (probable-keys (remove-if #'(lambda(result) (< (car result) prob-threshold)) results))
+        (more-keys-than-before (and (not (null number-of-keys-before))
+                                    (> (length probable-keys) number-of-keys-before)))
         (uniform-key-dist (every #'(lambda(e)(= (car e) best-prob)) results))
         (no-more-keys (or (< best-prob prob-threshold) uniform-key-dist)))
-    (cond ((and no-more-keys (already-tried comp-args))
+    (cond ((and (or no-more-keys more-keys-than-before) (already-tried comp-args))
            (make-completion-result :tried-properties tried-props))
-          (no-more-keys
+          ((or no-more-keys more-keys-than-before)
            (roslisp:ros-info (cram-robot-memory) "completed ~a" desig-props)
            (make-completion-result :target-fun-result
                                    (funcall target-func (get-designator desig-props))
                                    :tried-properties (cons desig-props tried-props)))
-          ((member-if #'(lambda(x) (equal x best-key)) seen-keys)
-           (complete-key-rec comp-args (cdr results)))
           (t
            (recurse-if-result-null
-            (complete-value comp-args best-key)
+            (complete-value (update-completion-args
+                             comp-args :number-of-probable-keys (length probable-keys))
+                            best-key)
             #'(lambda(result)
                 (if (completion-result-call-in-last-rec result) ;retuned from a direct call
                     (update-completion-result result :call-in-last-rec nil)
@@ -117,15 +120,9 @@
             (evidence (cons best-key-atom (completion-args-evidence comp-args)))
             (query (format nil "propertyValue(Prop~D, ?v)" prop-idx))
             (conf (completion-args-rosmln-config comp-args))
-            (result (cram-rosmln:evidence-query conf query evidence))
-            (second-best-prob (car (car (cdr result))))
-            (seen-keys (completion-args-seen-keys comp-args))
-            (seen-upd (if (< second-best-prob prob-threshold)
-                          (cons key seen-keys)
-                          seen-keys)))
+            (result (cram-rosmln:evidence-query conf query evidence)))
         (complete-val-rec (update-completion-args comp-args
-                                                  :evidence evidence
-                                                  :seen-keys seen-upd)
+                                                  :evidence evidence)
                           result key))))
 
 (defun complete-val-rec(comp-args results key)
@@ -133,7 +130,6 @@
         (evidence (completion-args-evidence comp-args))
         (tried-props (completion-args-tried-properties comp-args))
         (target-func (completion-args-target-function comp-args))
-        (seen-keys (completion-args-seen-keys comp-args))
         (best-val (get-argument-from-best-result results 1))
         (prop-idx (length desig-props))
         (best-prob (car (car results)))
@@ -159,8 +155,7 @@
            (recurse-if-result-null
             (complete-key (update-completion-args comp-args
                                                   :designator-properties updated-props
-                                                  :evidence updated-ev
-                                                  :seen-keys (cons key seen-keys)))
+                                                  :evidence updated-ev))
             #'(lambda(result)
                 (complete-val-rec
                  (update-completion-args

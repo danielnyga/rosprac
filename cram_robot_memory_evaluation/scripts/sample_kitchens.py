@@ -9,8 +9,8 @@ from functools import reduce
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dpmin", nargs="?", default=0, type=int, help="minimum number of dummy properties per object")
-    parser.add_argument("--dpmax", nargs="?", default=2, type=int, help="maximum number of dummy properties per object")
+    parser.add_argument("--dpmin", nargs="?", default=0, type=int, help="minimum number of test dummy obj properties")
+    parser.add_argument("--dpmax", nargs="?", default=2, type=int, help="maximum number of test dummy obj properties")
     parser.add_argument("--dkpop", nargs="?", default=5, type=int, help="population of dummy keys")
     parser.add_argument("--dvpop", nargs="?", default=5, type=int, help="population of dummy values")
     parser.add_argument("--train-kitchens", nargs="?", default=10, type=int, help="sampled kitchens for training")
@@ -22,14 +22,18 @@ def main():
                         type=str, help="csv file specifying the objects")
     parser.add_argument("--outdir", nargs="?", default="kitchens", type=str, help="output directory")
     r = vars(parser.parse_args())
-    sampler = SimpleKitchenSampler(r["dpmin"], r["dpmax"], r["dkpop"], r["dvpop"], r["objtypes"], r["locations"])
-    sample_kitchens(sampler, r["train_kitchens"], r["test_kitchens"], r["objects"], r["outdir"])
+    sampler = SimpleKitchenSampler(r["dkpop"], r["dvpop"], r["objtypes"], r["locations"])
+    sample_kitchens(sampler, r["train_kitchens"], r["test_kitchens"], r["objects"], r["dpmin"], r["dpmax"], r["outdir"])
 
 
-def sample_kitchens(kitchen_sampler, train_kitchens, test_kitchens, objects_per_kitchen, output_directory):
-    for prefix, train, number_of_kitchens in [("training-", True, train_kitchens), ("test-", False, test_kitchens)]:
+def sample_kitchens(kitchen_sampler, train_kitchens, test_kitchens, objects_per_kitchen,
+                    min_test_dummy_props, max_test_dummy_props, output_directory):
+    for prefix, number_of_kitchens, min_dummy, max_dummy in \
+            [("training-", train_kitchens, 0, 0),
+             ("test-", test_kitchens, min_test_dummy_props, max_test_dummy_props)]:
         for i in range(1, number_of_kitchens+1):
-            kitchen = LISPConverter.convert_to_lisp(kitchen_sampler.sample_kitchen_objects(objects_per_kitchen), train)
+            kitchen = LISPConverter.convert_to_lisp(
+                kitchen_sampler.sample_kitchen_objects(objects_per_kitchen, min_dummy, max_dummy))
             digits = 1+int(math.log10(number_of_kitchens))
             filename = ("{0}/" + prefix + "kitchen-{1:0" + str(digits) + "d}.lisp").format(output_directory, i)
             with open(filename, "w") as f:
@@ -37,19 +41,17 @@ def sample_kitchens(kitchen_sampler, train_kitchens, test_kitchens, objects_per_
 
 
 class SimpleKitchenSampler(object):
-    def __init__(self, min_num_dummy_props, max_num_dummy_props, dummy_key_population,
+    def __init__(self, dummy_key_population,
                  dummy_value_population, object_type_file, location_file):
         self.__random = random.Random()
         self.__random.seed(0)
-        self.__min_num_dummy_props = min_num_dummy_props
-        self.__max_num_dummy_props = max_num_dummy_props
-        self.__dummy_keys = ["train-dummy-key-" + str(i) for i in range(0, dummy_key_population)]
-        self.__dummy_values = ["train-dummy-val-" + str(i) for i in range(0, dummy_value_population)]
+        self.__dummy_keys = ["dummy-key-" + str(i) for i in range(0, dummy_key_population)]
+        self.__dummy_values = ["dummy-val-" + str(i) for i in range(0, dummy_value_population)]
         self.__locations = self.__get_kitchen_locations(location_file)
         self.__object_types_and_locations = self.__get_kitchen_object_types(object_type_file)
 
-    def sample_kitchen_objects(self, number_of_objects):
-        return [self.__sample_kitchen_object() for _ in range(0, number_of_objects)]
+    def sample_kitchen_objects(self, number_of_objects, min_dummy_props, max_dummy_props):
+        return [self.__sample_kitchen_object(min_dummy_props, max_dummy_props) for _ in range(0, number_of_objects)]
 
     def __get_kitchen_locations(self, location_file_name):
         with open(location_file_name, "r") as file:
@@ -69,15 +71,15 @@ class SimpleKitchenSampler(object):
                 raise Exception("The object file must have at least two columns!")
             return [(o[0], [l for l in self.__locations if l.location_type in o[1:]]) for o in lines]
 
-    def __sample_dummy_properties(self):
-        number_of_properties = self.__random.randint(self.__min_num_dummy_props, self.__max_num_dummy_props)
+    def __sample_dummy_properties(self, min_dummy_props, max_dummy_props):
+        number_of_properties = self.__random.randint(min_dummy_props, max_dummy_props)
         return {self.__random.choice(self.__dummy_keys): self.__random.choice(self.__dummy_values)
                 for _ in range(0, number_of_properties)}
 
-    def __sample_kitchen_object(self):
+    def __sample_kitchen_object(self, min_dummy_props, max_dummy_props):
         object_locations_pair = self.__random.choice(self.__object_types_and_locations)
         location = self.__random.choice(object_locations_pair[1])
-        dummy_properties = self.__sample_dummy_properties()
+        dummy_properties = self.__sample_dummy_properties(min_dummy_props, max_dummy_props)
         return KitchenObject(object_locations_pair[0], dummy_properties, location)
 
 
@@ -119,9 +121,10 @@ class LISPConverter(object):
     make_designator_str = "(cram-designators::make-designator "
 
     @staticmethod
-    def convert_to_lisp(kitchen_objects, include_location_designators):
+    def convert_to_lisp(kitchen_objects):
         objects = ["`(" + LISPConverter.get_bullet_pose(o) + " ," +
-                          LISPConverter.convert_object_designator(o, include_location_designators) + ")"
+                          LISPConverter.convert_object_designator(o, True) + " ," +
+                          LISPConverter.convert_object_designator(o, False) + ")"
                    for o in kitchen_objects]
         return reduce(lambda rest, o: rest + "\n," + o, objects, "`(") + ")"
 
@@ -129,7 +132,7 @@ class LISPConverter(object):
     def convert_object_designator(kitchen_object, include_location_designator):
         return LISPConverter.make_designator_str + ":object `(" +\
                "(:type :" + kitchen_object.object_type + ")" +\
-               reduce(lambda rest, kv: rest + "(:"+kv[0]+" "+kv[1]+")", kitchen_object.dummy_properties.items(),"") +\
+               reduce(lambda rest, kv: rest+"(:"+kv[0]+" \""+kv[1]+"\")", kitchen_object.dummy_properties.items(),"") +\
                ("(:at ," + LISPConverter.convert_location_designator(kitchen_object.location) + ")))"
                 if include_location_designator else "))")
 

@@ -32,7 +32,8 @@
 
 (defmethod spawn-object((environment (eql :bullet)) object-name object-type pose)
   (let ((name (symbol-value (intern object-name "KEYWORD"))))
-    (bullet-reasoning-utilities:spawn-object name object-type :color '(0 0 1) :pose pose)))
+    (bullet-reasoning-utilities:spawn-object name object-type :color '(0 0 1) :pose pose)
+    (cram-bullet-reasoning:simulate cram-bullet-reasoning:*current-bullet-world* 5)))
 
 (defmethod execute-in-environment((environment (eql :bullet)) function)
   (cram-projection:with-projection-environment

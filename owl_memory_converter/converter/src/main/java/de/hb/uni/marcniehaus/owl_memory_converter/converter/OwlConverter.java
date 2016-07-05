@@ -339,7 +339,7 @@ public class OwlConverter {
                             failure.getOtherDataProperties().containsKey(Constants.PROPERTY_FAILURE_LABEL)) {
                         String failureLabel = failure.getOtherDataProperties().
                                 get(Constants.PROPERTY_FAILURE_LABEL).iterator().next();
-                        assignFailuresRecursively(task, ((OWLLogElement) failure).getOwlInstanceName(), failureLabel);
+                        assignFailuresRecursively(task, getFailureId((OWLLogElement) failure), failureLabel);
                     } else {
                         throw new Exception("Invalid failure clause!");
                     }
@@ -352,7 +352,7 @@ public class OwlConverter {
         boolean caughtFailure = false;
         if(currentTask.getOtherObjectProperties().containsKey(Constants.PROPERTY_NAME_CAUGHT_FAILURE)) {
             for(LogElement cf : currentTask.getOtherObjectProperties().get(Constants.PROPERTY_NAME_CAUGHT_FAILURE)) {
-                if(cf instanceof OWLLogElement && ((OWLLogElement) cf).getOwlInstanceName().equals(failureId)) {
+                if(cf instanceof OWLLogElement && getFailureId((OWLLogElement) cf).equals(failureId)) {
                     caughtFailure = true;
                 }
             }
@@ -366,11 +366,19 @@ public class OwlConverter {
             if(!failures.contains(failureName) && failures.size()==0) {
                 failures.add(failureName);
             } else if (failures.contains(failureName)) {
-                mPublisher.logWarning("There is more than one failure failures for " + currentTask.getOwlInstanceName());
+                mPublisher.logWarning("There is more than one failure failures for "+currentTask.getOwlInstanceName());
             }
             caughtFailure = true;
         }
         return caughtFailure;
+    }
+
+    private String getFailureId(OWLLogElement failureLogElement) {
+        //If the failure id changes from 0 to 1, semrec somehow messes this up...
+        //=> caught failure with id 1, but the failure is neither thrown nor specified by an indiviual...
+        //This is the workaround: remove the _failure_x suffix
+        String originalFailureId = failureLogElement.getOwlInstanceName();
+        return originalFailureId.replaceAll("_failure_.*", "_failure_x");
     }
 
     private final MessageSender mPublisher;

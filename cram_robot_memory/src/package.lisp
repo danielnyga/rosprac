@@ -8,4 +8,5 @@
            get-failure-probability
            learning-failed
            start-learning
-           complete-learning))
+           complete-learning
+           split-recursively))

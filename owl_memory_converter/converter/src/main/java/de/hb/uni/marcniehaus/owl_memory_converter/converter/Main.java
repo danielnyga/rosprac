@@ -172,7 +172,7 @@ public class Main extends AbstractNodeMain
             Thread.sleep(1000);
             newLength = new File(filename).exists() ?
                     new File(filename).length() : 0;
-        } while(newLength>0 && oldLength != newLength);
+        } while(newLength == 0 || newLength > 0 && oldLength != newLength);
     }
 
     private void closeCommunication() {      

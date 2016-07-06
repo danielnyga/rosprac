@@ -13,37 +13,56 @@ function kill_ros_environment {
 	sleep 10
 }
 
+if ([ $# -ne 2 ] && [ $# -ne 0 ]) || ([ $# -eq 2 ] && [ "$1" != "test" ] && [ "$1" != "training" ]) ; then
+	echo -e "Usage: execute_evaluation.bash [<phase> <kitchen_number>]\n       with <phase> beeing test or training and <kitchen_number> the number to start with"
+	exit 1
+fi
+PHASE="training"
+KITCHEN_NUMBER=0
+if [ $# -eq 2 ]; then
+	PHASE=$1
+	KITCHEN_NUMBER=$2
+fi
+
 SCRIPT_FILE=`readlink -f $0`
 SCRIPT_DIRECTORY=`dirname $SCRIPT_FILE`
 cd $SCRIPT_DIRECTORY/..
 
-rm -rf kitchens
-mkdir kitchens
-$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 15 --test-kitchens 5 --objects 10
+if [ $PHASE == "training" ]; then
+	if [ $KITCHEN_NUMBER -eq 0 ]; then
+		rm -rf kitchens
+		mkdir kitchens
+		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 15 --test-kitchens 5 --objects 10
+	fi
+	EXTEND_MLNS="false"
+	for KITCHEN in kitchens/training-kitchen-*; do
+		CURRENT_KITCHEN_NUMBER=`echo $KITCHEN | cut -d"-" -f 3 | cut -d"." -f 1`
+		if [ $CURRENT_KITCHEN_NUMBER -ge $KITCHEN_NUMBER ]; then
+			start_ros_environment
+			echo "=================================================="
+			echo "training on $KITCHEN"
+			echo "=================================================="
+			$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-training.lisp $KITCHEN $EXTEND_MLNS
+			EXTEND_MLNS="true"
+			kill_ros_environment
+		fi
+	done
+fi
 
-EXTEND_MLNS="false"
-for KITCHEN in kitchens/training-kitchen*; do
-	start_ros_environment
-	echo "=================================================="
-	echo "training on $KITCHEN"
-	echo "=================================================="
-	$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-training.lisp $KITCHEN $EXTEND_MLNS
-	EXTEND_MLNS="true"
-	kill_ros_environment
-done
-
-
-for KITCHEN in kitchens/test-kitchen*; do
-	start_ros_environment
-	echo "=================================================="
-	echo "completion test on $KITCHEN"
-	echo "=================================================="
-	$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-completion-test.lisp $KITCHEN
-	echo "=================================================="
-	echo "comparison test on $KITCHEN"
-	echo "=================================================="
-	$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-comparison-test.lisp $KITCHEN data/locations.csv
-	kill_ros_environment
+for KITCHEN in kitchens/test-kitchen-*; do
+	CURRENT_KITCHEN_NUMBER=`echo $KITCHEN | cut -d"-" -f 3 | cut -d"." -f 1`
+	if [ $CURRENT_KITCHEN_NUMBER -ge $KITCHEN_NUMBER ]; then
+		start_ros_environment
+		echo "=================================================="
+		echo "completion test on $KITCHEN"
+		echo "=================================================="
+		$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-completion-test.lisp $KITCHEN
+		echo "=================================================="
+		echo "comparison test on $KITCHEN"
+		echo "=================================================="
+		$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-comparison-test.lisp $KITCHEN data/locations.csv
+		kill_ros_environment
+	fi
 done
 
 $SCRIPT_DIRECTORY/calculate_statistics.py kitchens/completion.csv kitchens/comparison.csv

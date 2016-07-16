@@ -4,35 +4,61 @@
                          extend-existing-mlns
                          &optional (environment :bullet))
   (do-something-with-objects-in-kitchen
-   kitchen-file-name :training environment #'train-grasping-objects extend-existing-mlns))
+   kitchen-file-name "training.csv" :training environment t
+    #'train-moving-objects extend-existing-mlns))
 
-(defun execute-comparison-test(kitchen-file-name
-                               location-file-name
-                               &optional (environment :bullet))
+(defun execute-naive-completion-test(kitchen-file-name
+                                     location-file-name
+                                     &optional (environment :bullet))
   (do-something-with-objects-in-kitchen
-    kitchen-file-name :test environment
-    #'(lambda(kd tro teo) (test-grasping-objects
-                           "comparison.csv"
-                           (lambda(fun desig tsk ctx parm)
-                             (complete-naively-with-next-on-failure
-                              location-file-name fun desig tsk ctx parm)) 
-                           kd
-                           tro
-                           teo))))
+    kitchen-file-name "naive_completion.csv" :test environment t
+    #'(lambda(training-object test-object)
+        (declare (ignore training-object))
+        (evaluate-completion-function test-object
+                                      (lambda(fun desig tsk ctx parm)
+                                        (complete-naively-with-next-on-failure
+                                         location-file-name fun desig tsk ctx parm))
+                                      #'move-to-pancake-table))))
 
-(defun execute-completion-test(kitchen-file-name &optional (environment :bullet))
+(defun execute-mln-completion-test(kitchen-file-name &optional (environment :bullet))
   (do-something-with-objects-in-kitchen
-    kitchen-file-name :test environment
-    #'(lambda(kd tro teo) (test-grasping-objects
-                           "completion.csv"
-                           #'cram-robot-memory:complete-with-next-on-failure
-                           kd
-                           tro
-                           teo))))
+    kitchen-file-name "mln_completion.csv" :test environment t
+    #'(lambda(training-object test-object)
+        (declare (ignore training-object))
+        (evaluate-completion-function test-object                                    
+                                      #'cram-robot-memory:complete-with-next-on-failure
+                                      #'move-to-pancake-table))))
+
+(defun execute-theoretical-test(kitchen-file-name
+                                location-file-name
+                                &optional (environment :bullet))
+  (do-something-with-objects-in-kitchen
+    kitchen-file-name "theoretical.csv" :test environment nil
+    #'(lambda(training-object test-object)
+        (test-theoretically location-file-name
+                            training-object
+                            test-object))))
+
+(defun execute-informed-test(kitchen-file-name
+                             &optional (environment :bullet))
+  (do-something-with-objects-in-kitchen
+    kitchen-file-name "informed.csv" :test environment t
+    #'(lambda(training-object test-object)
+        (evaluate-completion-function test-object
+                                      #'(lambda(fun desig task ctx parm)
+                                          (declare (ignore task desig ctx parm))
+                                          (cram-language:with-failure-handling
+                                              ((cram-language:plan-failure (e)
+                                                 (declare (ignore e))
+                                                 (return nil)))
+                                            (funcall fun training-object)))
+                                      #'move-to-pancake-table))))
 
 (defun do-something-with-objects-in-kitchen(kitchen-file-name
+                                            output-file-name
                                             scope
-                                            environment
+                                            environment                                            
+                                            spawn-objects
                                             operation
                                             &optional extend-existing-mlns)
   (funcall ; get rid of warning ...weakening keyword argument checking.
@@ -46,12 +72,17 @@
         environment
         (lambda()
           (let*((kitchen (eval (read-from-string (read-text-from-file kitchen-file-name))))
-                (training-objects (mapcar #'(lambda(x) (nth 1 x)) kitchen))
-                (test-objects (mapcar #'(lambda(x) (nth 2 x)) kitchen))
                 (kitchen-dir (directory-namestring (pathname kitchen-file-name))))
-            (spawn-objects kitchen environment)
-            (funcall operation kitchen-dir training-objects test-objects)))))))
-
+            (if spawn-objects
+                (spawn-objects kitchen environment))
+            (write-list-to-csv-file
+             kitchen-dir
+             output-file-name
+             (reduce #'(lambda(result kitchen)
+                         (cons (funcall operation (second kitchen) (third kitchen)) result))
+                     kitchen
+                     :initial-value nil))))))))
+             
 (defun read-text-from-file(file-name)
   (reduce #'(lambda(x y)(concatenate 'string x '(#\newline) y))
           (read-lines-from-file file-name)))
@@ -68,6 +99,12 @@
 (defun read-csv(filename)
   (mapcar #'(lambda(l)(cram-robot-memory:split-recursively l ";"))
           (read-lines-from-file filename)))
+
+(defun write-list-to-csv-file(dirname filename list)
+  (append-lines-to-file (concatenate 'string dirname "/" filename)
+                        (mapcar #'(lambda(line)
+                                    (reduce #'(lambda(x y) (format nil "~a;~a" x y)) line))
+                                list)))
 
 (defun spawn-objects(pose-object-pairs environment &optional (index 0))
   (if (not (null pose-object-pairs))
@@ -87,33 +124,17 @@
                   :if-does-not-exist :create)
     (mapcar #'(lambda(l) (write-line l file)) lines)))
 
-(defun train-grasping-objects(kitchen-dir training-objects test-objects)
-  (declare (ignore test-objects))
-  (let*((failure-file-name (concatenate 'string kitchen-dir "/failures.txt"))
-        (failure-information (train-grasping-objects-recursively training-objects))
-        (failure-info-str (format nil "~a" failure-information))
-        (failure-info-parts
-          (if (null failure-information)
-              ""
-              (subseq failure-info-str 1 (- (length failure-info-str) 1)))))
-    (append-lines-to-file failure-file-name `(,(format nil "~a" failure-info-parts)))))
-
-(defun train-grasping-objects-recursively(objects &optional (failure-information nil))
-  (if (null objects)
-      failure-information
-      (let*((object (car objects))
-            (put-location (cram-designators:make-designator
-                           :location '((:on "Cupboard") (:name "pancake_table"))))
-            (updated-failure-information
-              (cram-language:with-failure-handling
-                  ((cram-language:plan-failure (e1)
-                     (let*((object-name(cram-designators:desig-prop-value (car objects) :type))
-                           (failure-name(type-of e1)))
-                       (roslisp:ros-info (cram-robot-memory-evaluation) "Logging error ~a" e1)
-                       (return (cons `(,object-name ,failure-name) failure-information)))))
-                (cram-plan-library:achieve `(cram-plan-library:loc ,object ,put-location))
-                failure-information)))
-            (train-grasping-objects-recursively (cdr objects) updated-failure-information))))
+(defun train-moving-objects(train-object test-object)
+  (declare (ignore test-object))
+  (let ((object-name (format nil "~a" (cram-designators:desig-prop-value train-object :type)))
+        (location (format nil "~a" (cram-designators:description
+                                   (cram-designators:desig-prop-value train-object :at)))))
+    (cram-language:with-failure-handling
+        ((cram-language:plan-failure (e1)
+           (roslisp:ros-info (cram-robot-memory-evaluation) "Logging error ~a" e1)
+           (return `(,object-name ,location , (type-of e1)))))
+      (move-to-pancake-table train-object)
+      `(,object-name ,location nil))))
 
 (defun complete-naively-with-next-on-failure(locations-file do-sth-with designator
                                              &optional tsk ctxt parm)
@@ -140,46 +161,93 @@
     (complete-recursively (cram-designators:description designator)
                         (read-csv locations-file))))
 
-(defun test-grasping-objects(output-file-name completion-function kitchen-dir
+(defun test-moving-objects(output-file-name completion-function kitchen-dir
                              training-objects test-objects)
-  (append-lines-to-file (concatenate 'string kitchen-dir "/" output-file-name)
-                        (mapcar #'(lambda(line)
-                                    (reduce #'(lambda(x y) (format nil "~a;~a" x y)) line))
-                                (test-grasping-objects-recursively completion-function
-                                                                   training-objects
-                                                                   test-objects
-                                                                   nil))))
+  (declare (ignore training-objects))
+  (write-list-to-csv-file
+   kitchen-dir
+   output-file-name
+   (reduce #'(lambda(result test-object)
+               (cons 
+                (evaluate-completion-function
+                 test-object
+                 completion-function
+                 #'move-to-pancake-table)
+                result))
+           test-objects
+           :initial-value nil)))
+  
+(defun test-theoretically(location-filename training-object test-object)
+  (let*((real-object-location (cram-designators:desig-prop-value training-object :at))
+        (object-loc-str (format nil "~a" (cram-designators:description real-object-location)))
+        (test-object-type (cram-designators:desig-prop-value test-object :type))
+        (training-object-type (cram-designators:desig-prop-value training-object :type))
+        (completion-result-check
+          #'(lambda (designator)
+              (if (not (subsetp
+                        (cram-designators:description real-object-location)
+                        (cram-designators:description
+                         (cram-designators:desig-prop-value designator :at))
+                        :test #'equal))
+                  (cram-language:fail 'cram-plan-failures:object-not-found)
+                  t)))
+        (naive-result (evaluate-completion-function
+                       test-object
+                       #'(lambda(fun desig tsk ctx parm)
+                           (complete-naively-with-next-on-failure
+                            location-filename fun desig tsk ctx parm))                             
+                       completion-result-check))
+        (mln-result (evaluate-completion-function
+                     test-object
+                     #'cram-robot-memory:complete-with-next-on-failure
+                     completion-result-check))
+        (put-location (cram-designators:make-designator
+                       :location '((:on "Cupboard") (:name "pancake_table"))))
+        (success-params `(("?OBJ" ,training-object) ("?LOC" ,put-location)))
+        (failure-probabilities
+          (cram-robot-memory:get-failure-probability "ACHIEVE" success-params "LOC ?OBJ ?LOC"))
+        (success-rate (car (car (remove-if #'(lambda(entry) (not (null (second entry))))
+                                           failure-probabilities))))
+        (str-success-rate (format nil "~,4f" (if (null success-rate) 0.0 success-rate)))
 
-(defun test-grasping-objects-recursively(completion-func training-objects test-objects results)
-  (if (null test-objects)
-      results
-      (let*((task-name "ACHIEVE")
-            (goal-context "LOC ?OBJ ?LOC")
-            (put-location (cram-designators:make-designator
-                           :location '((:on "Cupboard") (:name "pancake_table"))))
-            (params `(("?OBJ" ,(car training-objects)) ("?LOC" ,put-location)))
-            (failure-probabilities
-              (cram-robot-memory:get-failure-probability task-name params goal-context))
-            (success-rate (car (car (remove-if #'(lambda(entry) (not (null (nth 1 entry))))
-                                          failure-probabilities))))
-            (str-success-rate (format nil "~,4f" success-rate)) 
-            (object-type (cram-designators:desig-prop-value (car test-objects) :type))
-            (tries 0)
-            (comp-res(funcall completion-func
-                      (lambda(object)
-                        (cond ((= (length (cram-designators:description object))
-                                  (length (cram-designators:description (car test-objects))))
-                               (roslisp:ros-info (cram-robot-memory-evaluation)
-                                                 "no completion found for ~a..." object) 
-                               nil)
-                              (t (setf tries (+ tries 1))
-                                 (cram-plan-library:achieve
-                                  `(cram-plan-library:loc ,object ,put-location)))))
-                      (car test-objects)
-                      task-name
-                      goal-context
-                      "?OBJ"))
-            (success (not (not comp-res)))
-            (result `(,object-type ,success ,str-success-rate ,tries)))
-        (test-grasping-objects-recursively
-          completion-func (cdr training-objects) (cdr test-objects) (cons result results)))))
+        (location-params `(("?OBJ-DESIG" ,(cram-designators:make-designator
+                                          :object `((:at ,real-object-location))))))
+        (object-type-probabilities (cram-robot-memory:execute-general-query
+                                    "propertyValue(Obj, ?v)"
+                                    :result-index 1
+                                    :task-name "PERCEIVE-OBJECT"
+                                    :goal-pattern "A ?OBJ-DESIG"
+                                    :arguments location-params
+                                    :include-success t
+                                    :evidence '("propertyKey(Obj,\"object.TYPE\")")))
+        (location-pos (position (symbol-name test-object-type) object-type-probabilities
+                                :test #'(lambda(x y) (equal x (second y)))))
+        (location-rank (if (null location-pos) nil (+ location-pos 1))))
+    (assert (equal test-object-type training-object-type))
+    (concatenate 'list `(,test-object-type ,object-loc-str ,str-success-rate ,location-rank)
+                 (cdr naive-result) (cdr mln-result))))
+  
+(defun evaluate-completion-function(designator completion-function evaluation-function)
+  (let*((object-type (cram-designators:desig-prop-value designator :type))
+        (tries 0)
+        (comp-res(funcall completion-function
+                          (lambda(object)
+                            (cond ((= (length (cram-designators:description object))
+                                      (length (cram-designators:description designator)))
+                                   (roslisp:ros-info (cram-robot-memory-evaluation)
+                                                     "no completion found for ~a..." object) 
+                                   nil)
+                                  (t (setf tries (+ tries 1))
+                                     (funcall evaluation-function object))))
+                          designator
+                          "ACHIEVE"
+                          "LOC ?OBJ ?LOC"
+                          "?OBJ"))
+        (success (not (not comp-res))))
+    `(,object-type ,success ,tries)))
+
+(defun move-to-pancake-table(object)
+  (cram-plan-library:achieve `(cram-plan-library:loc
+                               ,object
+                               ,(cram-designators:make-designator
+                                 :location '((:on "Cupboard") (:name "pancake_table"))))))

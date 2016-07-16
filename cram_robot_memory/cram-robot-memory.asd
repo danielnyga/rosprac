@@ -11,6 +11,7 @@
     :components
     ((:file "package")
      (:file "utilities" :depends-on ("package"))
-     (:file "success-estimation" :depends-on ("package" "utilities"))
+     (:file "general-queries" :depends-on ("package" "utilities"))
+     (:file "success-estimation" :depends-on ("package" "utilities" "general-queries"))
      (:file "designator-completion" :depends-on ("package" "utilities"))
      (:file "learning" :depends-on ("package"))))))

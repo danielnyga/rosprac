@@ -6,6 +6,7 @@
   (:export with-completed-designator
            complete-with-next-on-failure
            get-failure-probability
+           execute-general-query
            learning-failed
            start-learning
            complete-learning

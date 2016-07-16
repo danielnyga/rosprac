@@ -30,9 +30,10 @@ cd $SCRIPT_DIRECTORY/..
 
 if [ $PHASE == "training" ]; then
 	if [ $KITCHEN_NUMBER -eq 0 ]; then
-		rm -rf kitchens
+	rm -rf kitchens
 		mkdir kitchens
-		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 15 --test-kitchens 5 --objects 10
+#		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 15 --test-kitchens 5 --objects 10
+		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 1 --test-kitchens 1 --objects 2
 	fi
 	EXTEND_MLNS="false"
 	for KITCHEN in kitchens/training-kitchen-*; do
@@ -54,15 +55,29 @@ for KITCHEN in kitchens/test-kitchen-*; do
 	if [ $CURRENT_KITCHEN_NUMBER -ge $KITCHEN_NUMBER ]; then
 		start_ros_environment
 		echo "=================================================="
-		echo "completion test on $KITCHEN"
+		echo "theoretical completion test on $KITCHEN"
 		echo "=================================================="
-		$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-completion-test.lisp $KITCHEN
+		$LISP_INTERPRETER $SCRIPT_DIRECTORY/execute-theoretical-test.lisp $KITCHEN data/locations.csv
+		kill_ros_environment
+		start_ros_environment
 		echo "=================================================="
-		echo "comparison test on $KITCHEN"
+		echo "informed test on $KITCHEN"
 		echo "=================================================="
-		$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-comparison-test.lisp $KITCHEN data/locations.csv
+		$LISP_INTERPRETER $SCRIPT_DIRECTORY/execute-informed-test.lisp $KITCHEN
+		kill_ros_environment
+		start_ros_environment
+		echo "=================================================="
+		echo "mln completion test on $KITCHEN"
+		echo "=================================================="
+		$LISP_INTERPRETER $SCRIPT_DIRECTORY/execute-mln-completion-test.lisp $KITCHEN
+		kill_ros_environment
+		start_ros_environment
+		echo "=================================================="
+		echo "naive completion test on $KITCHEN"
+		echo "=================================================="
+		$LISP_INTERPRETER $SCRIPT_DIRECTORY/execute-naive-completion-test.lisp $KITCHEN data/locations.csv
 		kill_ros_environment
 	fi
 done
 
-$SCRIPT_DIRECTORY/calculate_statistics.py kitchens/completion.csv kitchens/comparison.csv
+$SCRIPT_DIRECTORY/calculate_statistics.py kitchens

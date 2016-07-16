@@ -30,12 +30,13 @@ cd $SCRIPT_DIRECTORY/..
 
 if [ $PHASE == "training" ]; then
 	if [ $KITCHEN_NUMBER -eq 0 ]; then
-	rm -rf kitchens
+		rm -rf kitchens
 		mkdir kitchens
-#		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 15 --test-kitchens 5 --objects 10
-		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 1 --test-kitchens 1 --objects 2
+		$SCRIPT_DIRECTORY/sample_kitchens.py --locations=data/locations.csv --objtypes=data/objects.csv --outdir=kitchens --dpmin 1 --dpmax 2 --dkpop 5 --dvpop 5 --train-kitchens 20 --test-kitchens 5 --objects 10
+		EXTEND_MLNS="false"
+	else
+		EXTEND_MLNS="true"
 	fi
-	EXTEND_MLNS="false"
 	for KITCHEN in kitchens/training-kitchen-*; do
 		CURRENT_KITCHEN_NUMBER=`echo $KITCHEN | cut -d"-" -f 3 | cut -d"." -f 1`
 		if [ $CURRENT_KITCHEN_NUMBER -ge $KITCHEN_NUMBER ]; then
@@ -44,10 +45,12 @@ if [ $PHASE == "training" ]; then
 			echo "training on $KITCHEN"
 			echo "=================================================="
 			$LISP_INTERPRETER $SCRIPT_DIRECTORY/grasp-objects-for-training.lisp $KITCHEN $EXTEND_MLNS
+			cp `rospack find cram_robot_memory`/logs/robot_memory/exp-0/log.owl kitchens/log-$CURRENT_KITCHEN_NUMBER.owl
 			EXTEND_MLNS="true"
 			kill_ros_environment
 		fi
 	done
+	KITCHEN_NUMBER=0
 fi
 
 for KITCHEN in kitchens/test-kitchen-*; do

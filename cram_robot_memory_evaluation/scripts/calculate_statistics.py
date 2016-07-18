@@ -58,9 +58,9 @@ class Statistics:
         print("{0:60}{1}".format("Correctly guessed success assuming threshold 0.5 (%):", correctly_guessed))
 
     def print_location_rate(self):
-        successful = list(filter(lambda l: l[self.__location_index] != "NIL", self.__data))
+        successful = [float(l[self.__location_index]) for l in self.__data if l[self.__location_index] != "NIL"]
         location_success = float(len(successful)) / len(self.__data)
-        average_position = None if len(successful)==0 else (float(sum(successful)) / len(successful))
+        average_position = None if len(successful)==0 else (sum(successful) / len(successful))
         print("{0:60}{1}".format("Successfully guessed objects for a location (%):", location_success))
         print("{0:60}{1}".format("Average rank:", average_position))
 
@@ -76,56 +76,58 @@ def main(csv_file_directory):
 
 
 def print_informed_statistics(data):
-    print()
+    print("")
     print("==================================")
     print("FULLY INFORMED OBJECT DISPLACEMENT")
     print("==================================")
-    print()
+    print("")
     stats = Statistics(data, success_index=Indices.informed_success,
-                       estimated_success_index=Indices.theoretical_success_estimate)
+                       estimated_success_index=Indices.theoretical_success_estimate,
+                       location_index=Indices.theoretical_object_position)
     stats.print_success_rate()
     stats.print_estimate()
+    stats.print_location_rate()
 
 
 def print_mln_completion_results(data):
-    print()
+    print("")
     print("==============")
     print("MLN COMPLETION")
     print("==============")
-    print()
+    print("")
     stats = Statistics(data, success_index=Indices.mln_completion_success, tries_index=Indices.mln_completion_tries)
     stats.print_success_rate()
     stats.print_tries()
 
 
 def print_naive_completion_results(data):
-    print()
+    print("")
     print("================")
     print("NAIVE COMPLETION")
     print("================")
-    print()
+    print("")
     stats = Statistics(data, success_index=Indices.naive_completion_success, tries_index=Indices.naive_completion_tries)
     stats.print_success_rate()
     stats.print_tries()
 
 
 def print_theoretical_mln_completion_results(data):
-    print()
+    print("")
     print("==========================")
     print("MLN COMPLETION (IN THEORY)")
     print("==========================")
-    print()
+    print("")
     stats = Statistics(data, success_index=Indices.theoretical_mln_success, tries_index=Indices.theoretical_mln_tries)
     stats.print_success_rate()
     stats.print_tries()
 
 
 def print_theoretical_naive_results(data):
-    print()
+    print("")
     print("============================")
     print("NAIVE COMPLETION (IN THEORY)")
     print("============================")
-    print()
+    print("")
     stats = Statistics(data, success_index=Indices.theoretical_naive_success,
                        tries_index=Indices.theoretical_naive_tries)
     stats.print_success_rate()

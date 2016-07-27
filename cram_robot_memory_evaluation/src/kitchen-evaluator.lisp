@@ -3,6 +3,13 @@
 (defun execute-training (kitchen-file-name
                          extend-existing-mlns
                          &optional (environment :bullet))
+  "Executes the traininng on the given kitchen files
+   kitchen-file-name is the filename of the training kitchen containing the objects to be
+   placed at the pancake table.
+   extend-existing-mlns can be set to tell the robot_memory service to update a
+   MLN whcih already exists.
+   The function will write the file training.csv in the directory where the kitchen 
+   is located."
   (do-something-with-objects-in-kitchen
    kitchen-file-name "training.csv" :training environment t
     #'train-moving-objects extend-existing-mlns))
@@ -10,6 +17,12 @@
 (defun execute-naive-completion-test(kitchen-file-name
                                      location-file-name
                                      &optional (environment :bullet))
+  "Executes the naive completion test naiviely completing the test objects with a location.
+   kitchen-file-name is the name of the test kitchen.
+   location-file-name is the name of the location csv file used to extend the training
+   objects in the test kitchen with a location.
+   The function will write the file naive_completion.csv in the directory where the kitchen
+   is located."
   (do-something-with-objects-in-kitchen
     kitchen-file-name "naive_completion.csv" :test environment t
     #'(lambda(training-object test-object)
@@ -21,6 +34,10 @@
                                       #'move-to-pancake-table))))
 
 (defun execute-mln-completion-test(kitchen-file-name &optional (environment :bullet))
+  "Executes the MLN completion test using the cram_robot_memory functionalities.
+   kitchen-file-name is the name of the test kitchen.
+   The function will write the file mln_completion.csv in the directory where the kitchen
+   is located."
   (do-something-with-objects-in-kitchen
     kitchen-file-name "mln_completion.csv" :test environment t
     #'(lambda(training-object test-object)
@@ -32,6 +49,13 @@
 (defun execute-theoretical-test(kitchen-file-name
                                 location-file-name
                                 &optional (environment :bullet))
+  "Executes the theoretical test comparing the MLN and naive completion functions in theory
+   and inferring the success probability and the objects at a location.
+   kitchen-file-name is the name of the test kitchen.
+   location-file-name is the name of the location csv file used to extend the training
+   objects in the test kitchen with a location during the naive_completion.
+   The function will write the file theoretical_completion.csv in the directory where the 
+   kitchen is located."
   (do-something-with-objects-in-kitchen
     kitchen-file-name "theoretical.csv" :test environment nil
     #'(lambda(training-object test-object)
@@ -41,6 +65,11 @@
 
 (defun execute-informed-test(kitchen-file-name
                              &optional (environment :bullet))
+  "Executes the informed test where the robot transports the training object to the 
+   pancake_table.
+   kitchen-file-name is the name of the test kitchen.
+   The function will write the file informed.csv in the directory where the kitchen
+   is located."
   (do-something-with-objects-in-kitchen
     kitchen-file-name "informed.csv" :test environment t
     #'(lambda(training-object test-object)

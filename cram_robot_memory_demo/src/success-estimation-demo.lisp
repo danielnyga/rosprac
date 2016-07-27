@@ -1,6 +1,7 @@
 (in-package :cram-robot-memory-demo)
 
 (defun execute-success-estimation-demo(&optional (environment :bullet))
+  "main entry point for the success estimation demo"
   (cram-robot-memory-test-utils:execute-training-and-test-functions
    environment
    :training #'create-success-estimation-training-data

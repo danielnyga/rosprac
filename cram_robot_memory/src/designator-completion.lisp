@@ -3,6 +3,19 @@
 (defconstant prob-threshold 0.00001)
 
 (defun complete-with-next-on-failure(do-sth-with designator &optional task goal-ctxt goal-parm)
+  "Completes the given designator.
+   Optionally, only designators already seen in combination with task, goal-ctxt and goal-param
+   are returned.
+   If the designator is complete, the function do-sth-with is executed.
+   If do-sth-with fails with a plan failure (or something derived from that),
+   the next designator is inferred if there is another one. 
+   do-sth-with is a function accepting one argument: the completed designator
+   designator is a possible incompleted CRAM designator.
+   task is a task name as string written in captial letters, e.g. ACHIEVE
+   goal-ctxt is the prolog annotation of a task as string in captial letters,
+   e.g. OBJECT-IN-HAND ?OBJ
+   goal-param is the parameter represented by the designator, e.g. ?OBJ
+   The return value is nil if there is a failure and otherwise the return value of do-sth-with"  
   (car (with-completed-designator
          #'(lambda(d)
            (cram-language:with-failure-handling
@@ -14,6 +27,19 @@
          designator task goal-ctxt goal-parm)))                       
 
 (defun with-completed-designator(do-sth-with designator &optional task goal-ctxt goal-parm) 
+  "Completes the given designator.
+   Optionally, only designators already seen in combination with task, goal-ctxt and goal-param
+   are returned.
+   If the designator is complete, the function do-sth-with is executed.
+   If do-sth-with returns nil, the next designator is inferred if there is another one. 
+   do-sth-with is a function accepting one argument: the completed designator
+   designator is a possible incompleted CRAM designator.
+   task is a task name as string written in captial letters, e.g. ACHIEVE
+   goal-ctxt is the prolog annotation of a task as string in captial letters,
+   e.g. OBJECT-IN-HAND ?OBJ
+   goal-param is the parameter represented by the designator, e.g. ?OBJ
+   The return value is nil if the completion failed and otherwise the return value of
+   do-sth-with"  
   (let*((use-simplified-mln (and (null task) (null goal-ctxt) (null goal-parm)))
         (config (get-rosmln-config use-simplified-mln))
         (properties (get-designator-properties designator ""))

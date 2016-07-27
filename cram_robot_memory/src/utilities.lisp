@@ -1,12 +1,17 @@
 (in-package :cram-robot-memory)
 
 (defun split-recursively(rest pattern &optional to-return)
-            (let((pos (search pattern rest)))
-              (if (null pos)
-                  (concatenate 'list to-return `(,rest))
-                  (split-recursively (subseq rest (+ pos (length pattern)))
-                                     pattern
-                                     (concatenate 'list to-return `(,(subseq rest 0 pos)))))))
+  "Splits the string rest by pattern.
+   rest is a string to be split.
+   pattern is a pattern stating where the string shall be split.
+   to return is for internal use only.
+   The result is a list representing the parts of the string."
+  (let((pos (search pattern rest)))
+    (if (null pos)
+        (concatenate 'list to-return `(,rest))
+        (split-recursively (subseq rest (+ pos (length pattern)))
+                           pattern
+                           (concatenate 'list to-return `(,(subseq rest 0 pos)))))))
 
 (defun get-designator-type(designator)
   (let* ((class-name (symbol-name (type-of designator)))

@@ -12,6 +12,7 @@ class NegatableElement(object):
 
 
 class GroundAtom(NegatableElement):
+    #TODO: This class should rather be named Literal...
     def __init__(self, predicate, constants, negated=False):
         NegatableElement.__init__(self, negated)
         self.__predicate = predicate

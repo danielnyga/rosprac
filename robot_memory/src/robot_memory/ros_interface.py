@@ -5,7 +5,7 @@ import traceback
 import rospy
 from copy import copy
 from robot_memory.task_tree import TaskTreeNode, TaskTreeGoalNode, Designator, DesignatorType
-from robot_memory.pracmln_adapter import PracmlnAdapter
+#from robot_memory.pracmln_adapter import PracmlnAdapter
 from robot_memory import mln_creator
 from std_srvs.srv import Trigger, TriggerResponse
 from task_tree_msgs.msg import RobotState, Designator as RosDesignator

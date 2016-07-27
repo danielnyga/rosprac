@@ -1,6 +1,7 @@
 (in-package :cram-robot-memory-demo)
 
 (defun execute-perceive-and-grasp-mug-demo(&optional (environment :bullet))
+  "main entry point for the perceive and grasp mug demo"
   (cram-robot-memory-test-utils:execute-training-and-test-functions
    environment
    :training #'create-perceive-and-grasp-mug-training-data

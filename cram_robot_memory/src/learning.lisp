@@ -3,12 +3,17 @@
 (define-condition learning-failed (simple-condition) ())
 
 (defun start-learning()
+  "Starts recording function calls which should later be part of a MLN.
+   This function essentially loads cram_beliefstate...."
   ;avoid static dependencies to cram_beliefstate when learning is not necessary...
   (ros-load:load-system "cram_beliefstate" :cram-beliefstate)
   (funcall (find-symbol "ENABLE-LOGGING" "BELIEFSTATE") t)
 )
 
 (defun complete-learning(extend-old-models)
+  "Learns a MLN from the recorded function calls.
+   This function requries robot_memory.launch to be started.
+   extend-old-models has to be t if an existing MLN shall be updated and nil otherwise." 
   (let ((convert-service-name "owl_memory_converter/convert")
         (owl-file-path (concatenate
                         'string

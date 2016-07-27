@@ -7,6 +7,9 @@ import uuid
 def create_database_collection(root_tasks):
     to_return = DatabaseCollection()
 
+    #TODO: This database is actually too large - There must be one database for two formulas.
+    #However, this is compensated by the formula creation such that the MLNs are correct, though.
+
     for task in _get_all_tasks_as_one_list(root_tasks):
         db = Database()
         to_return.append(db)

@@ -53,7 +53,6 @@ def _create_task_and_designator_mln(databases):
                            Predicates.GOAL_PATTERN, Predicates.TASK_NAME, Predicates.GOAL_PARAMETER,
                            Predicates.GOAL_PARAMETER_KEY]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
-    formulas = _split_different_designators(formulas)
     formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"),  (Types.TASK, "?t"),
                                               (Types.DESIGNATOR, "?d")])
     mln.append_formulas(formulas)
@@ -66,13 +65,11 @@ def _create_designator_mln(databases):
     optional_predicates = [Predicates.DESIGNATOR_PROPERTY, Predicates.TASK_FAILURE,
                            Predicates.DESIGNATOR_PROPERTY_KEY, Predicates.DESIGNATOR_PROPERTY_VALUE]
     formulas = _get_formula_templates_from_databases(databases, optional_predicates, necessary_predicates)
-    formulas = _split_different_designators(formulas)
     formulas = _apply_replacements(formulas, [(Types.DESIGNATOR_PROPERTY, "?dp"), (Types.DESIGNATOR, "?d")])
     for formula in formulas:
-        for conjunction in formula.logical_formula:
-            for atom in list(conjunction):
-                if atom.predicate == Predicates.TASK_FAILURE:
-                    conjunction.remove_element(atom)
+        for atom in list(formula.logical_formula):
+            if atom.predicate == Predicates.TASK_FAILURE:
+                formula.logical_formula.remove_element(atom)
     mln.append_formulas(formulas)
     return mln
 
@@ -149,14 +146,13 @@ def _get_formula_templates_from_databases(databases, possible_preds, necessary_p
     predicate_contained_in_formula = lambda gnd_atom: not hasattr(gnd_atom, "predicate") or \
                                                       gnd_atom.predicate in possible_preds
     formula_atoms = [filter(predicate_contained_in_formula,
-                            [FormulaGroundAtom(ga) if isinstance(ga, FormulaGroundAtom) else ga for ga in db])
+                            [FormulaLiteral(ga) if isinstance(ga, FormulaLiteral) else ga for ga in db])
                      for db in databases]
     predicate_is_in_list = lambda gnd_atoms, pred: pred in [g.predicate for g in gnd_atoms if hasattr(g, "predicate")]
     atoms_contain_necessary_elements = lambda atoms: \
         reduce(lambda a, b: a and b, [predicate_is_in_list(atoms, pred) for pred in necessary_preds])
     formula_atoms = filter(atoms_contain_necessary_elements, formula_atoms)
-    formulas = \
-        [Formula(0.0, Conjunction([Conjunction(ground_atom_list, False, True)])) for ground_atom_list in formula_atoms]
+    formulas = [Formula(0.0, Conjunction([FormulaLiteral(ga) for ga in atom_list])) for atom_list in formula_atoms]
     return formulas
 
 
@@ -202,42 +198,3 @@ def _apply_replacements(formulas, formula_replacements):
 
         apply_replacements_recursively(formula.logical_formula, 0)
     return formulas
-
-
-def _split_different_designators(formulas):
-    to_return = []
-    for formula in formulas:
-        for conjunction in formula.logical_formula:
-            designator_property_list = [(atom.get_argument_values(Types.DESIGNATOR), atom,
-                                         atom.get_argument_values(Types.DESIGNATOR_PROPERTY)) for atom in conjunction]
-            property_designator_map = {p[0]: d[0] for d, _, p in designator_property_list if d and p}
-            designator_atom_map = {d[0]: [] for d, _, _ in designator_property_list if d}
-            other_atoms = []
-            for designators, atom, properties in designator_property_list:
-                if designators:
-                    designator_atom_map[designators[0]].append(atom)
-                elif properties:
-                    designator_atom_map[property_designator_map[properties[0]]].append(atom)
-                else:
-                    other_atoms.append(atom)
-            for _, atoms_for_one_designator in designator_atom_map.items():
-                get_property_arguments = lambda atom: atom.get_argument_values(Types.DESIGNATOR_PROPERTY)
-                designator_atoms = filter(lambda atom: not get_property_arguments(atom), atoms_for_one_designator)
-                property_atoms = filter(get_property_arguments, atoms_for_one_designator)
-                property_atoms.sort(key = lambda atom: get_property_arguments(atom)[0])
-                property_groups = [list(grp) for _, grp in groupby(property_atoms, lambda a: get_property_arguments(a))]
-                if len(property_groups) == 1:
-                    conjunction_elements = [] #TODO: Support that somehow...i.e. use a negated existential quantifier
-                else:
-                    def escape(combination):
-                        new_combination = [FormulaGroundAtom(a) for a in combination]
-                        for a in new_combination:
-                            a.set_argument_value(Types.DESIGNATOR_PROPERTY, 0, "Foo")
-                        return new_combination
-                    comb = filter(lambda c: escape(c[0]) != escape(c[1]), combinations(property_groups, 2))
-                    conjunction_elements = [other_atoms + designator_atoms + list(c[0]) + list(c[1]) for c in comb]
-                for atoms in conjunction_elements:
-                    atoms = [FormulaGroundAtom(atom) for atom in atoms]
-                    new_formula = Formula(formula.weight, Conjunction([Conjunction(atoms)]))
-                    to_return.append(new_formula)
-    return to_return

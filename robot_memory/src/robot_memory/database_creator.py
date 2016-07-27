@@ -1,42 +1,35 @@
 from robot_memory.mln_elements import DatabaseCollection, Database, DomainDeclaration
-from robot_memory.robot_memory_constants import Predicates, Types
-import re
+from robot_memory.robot_memory_constants import Predicates
+import itertools
 import uuid
 
 
 def create_database_collection(root_tasks):
     to_return = DatabaseCollection()
 
-    #TODO: This database is actually too large - There must be one database for two formulas.
-    #However, this is compensated by the formula creation such that the MLNs are correct, though.
-
     for task in _get_all_tasks_as_one_list(root_tasks):
-        db = Database()
-        to_return.append(db)
-        _append_to_db(db, Predicates.TASK_NAME, task.task_id, task.name)
-        _append_to_db(db, Predicates.TASK_FAILURE, task.task_id, " " if task.failure is None else task.failure)
-        for goal_key, designator in task.designators:
+        def create_db_for_designator(goal_key, designator):
+            db = Database()
+            to_return.append(db)
+            _append_to_db(db, Predicates.TASK_NAME, task.task_id, task.name)
+            _append_to_db(db, Predicates.TASK_FAILURE, task.task_id, " " if task.failure is None else task.failure)
+            if hasattr(task, "goal_pattern"):
+                _append_to_db(db, Predicates.GOAL_PATTERN, task.task_id, task.goal_pattern)
+            else:
+                _append_to_db(db, Predicates.GOAL_PATTERN, task.task_id, " ")
             _append_to_db(db, Predicates.GOAL_PARAMETER, designator.designator_id, task.task_id)
             _append_to_db(db, Predicates.GOAL_PARAMETER_KEY, designator.designator_id, goal_key)
-            for key, value in _get_full_scoped_key_and_value(designator):
-                property_id = str(uuid.uuid4())
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator.designator_id)
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_KEY, property_id, key)
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_VALUE, property_id, value)
+            return db
 
-        if hasattr(task, "goal_pattern"):
-            _append_to_db(db, Predicates.GOAL_PATTERN, task.task_id, task.goal_pattern)
-        else:
-            _append_to_db(db, Predicates.GOAL_PATTERN, task.task_id, " ")
-        if hasattr(task, "goal_properties"):
-            for key, value in task.goal_properties:
-                property_id = str(uuid.uuid4())
-                designator_id = str(uuid.uuid4())
-                _append_to_db(db, Predicates.GOAL_PARAMETER, designator_id, task.task_id)
-                _append_to_db(db, Predicates.GOAL_PARAMETER_KEY, designator_id, key)
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator_id)
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_KEY, property_id, "value")
-                _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_VALUE, property_id, value)
+        for goal_key, designator in task.designators:
+            for combination in itertools.combinations(_get_full_scoped_key_and_value(designator), 2):
+                db = create_db_for_designator(goal_key, designator)
+                for key, value in combination:
+                    property_id = str(uuid.uuid4())
+                    _append_to_db(db, Predicates.DESIGNATOR_PROPERTY, property_id, designator.designator_id)
+                    _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_KEY, property_id, key)
+                    _append_to_db(db, Predicates.DESIGNATOR_PROPERTY_VALUE, property_id, value)
+
     return to_return
 
 

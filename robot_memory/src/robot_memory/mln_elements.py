@@ -11,7 +11,7 @@ class NegatableElement(object):
         self.negated = value
 
 
-class GroundAtom(NegatableElement):
+class Literal(NegatableElement):
     #TODO: This class should rather be named Literal...
     def __init__(self, predicate, constants, negated=False):
         NegatableElement.__init__(self, negated)
@@ -19,7 +19,7 @@ class GroundAtom(NegatableElement):
         self._constants = [[type, str(value)] for type, value in constants]
 
     def __invert__(self):
-        return GroundAtom(self.__predicate, self._constants, not self.negated)
+        return Literal(self.__predicate, self._constants, not self.negated)
 
     def __str__(self):
         args = str(reduce(lambda s1, s2: str(s1) + "," + str(s2), [c[1] for c in self._constants]))
@@ -100,7 +100,7 @@ class Predicate(object):
                     + self.__predicate_name
                     + str(args)
                 )
-        return GroundAtom(self, zip(self.__types, args))
+        return Literal(self, zip(self.__types, args))
 
     def __str__(self):
         return self.__predicate_name + "(" + str(reduce(lambda t1, t2: str(t1) + "," + str(t2), self.__types)) + ")"
@@ -200,23 +200,23 @@ class Database(object):
         self.__ground_atoms.add(ground_atom)
 
 
-class FormulaGroundAtom(GroundAtom):
+class FormulaLiteral(Literal):
     def __init__(self, gnd_atom):
-        GroundAtom.__init__(self, gnd_atom.predicate, gnd_atom._constants, gnd_atom.negated)
+        Literal.__init__(self, gnd_atom.predicate, gnd_atom._constants, gnd_atom.negated)
         self.__apply_expand_operator = False
 
     def __eq__(self, other):
         other_expand_operator = hasattr(other, "__apply_expand_operator") and other.__apply_expand_operator
-        return GroundAtom.__eq__(self, other) and self.__apply_expand_operator == other_expand_operator
+        return Literal.__eq__(self, other) and self.__apply_expand_operator == other_expand_operator
 
     def __ne__(self, other):
         return not self.__eq__()
 
     def __hash__(self):
-        return GroundAtom.__hash__(self) + self.__apply_expand_operator.__hash__()
+        return Literal.__hash__(self) + self.__apply_expand_operator.__hash__()
 
     def __str__(self):
-        return ("*" if self.__apply_expand_operator else "") + GroundAtom.__str__(self)
+        return ("*" if self.__apply_expand_operator else "") + Literal.__str__(self)
 
     def __repr__(self):
         return str(self)
@@ -372,7 +372,8 @@ class EqualityComparison(NegatableElement):
         return not self.__eq__(other)
 
 
-class ClosedWorldGroundAtoms(object):
+class ClosedWorldLiterals(object):
+    #represents a negated existential quantifier
     def __init__(self, predicate, fixed_index_value_pairs, existing_indices_and_values, variable_prefix):
         self.__predicate = predicate
         self.__fixed_index_value_pairs = fixed_index_value_pairs

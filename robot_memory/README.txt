@@ -9,5 +9,5 @@ There are a few more options that can be passed to the service executable:
 
 rosrun robot_memory service --debug --include-perform
 
-The --debug option prints the task tree to the command line before learning. Moreover, a database file is created. (Unfortunately, the databases have the wrong form - actually, more databases with less ground atoms have to be created. The MLN weights are calculated correctly, though).
+The --debug option prints the task tree to the command line before learning. Moreover, a database file is created.
 The --include-perform option also includes action designators used as arguments for the process modules in the MLNs.

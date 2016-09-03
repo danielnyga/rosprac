@@ -5,4 +5,5 @@
     :components
     ((:file "package")
      (:file "perceive-and-grasp-mug-demo" :depends-on ("package"))
-     (:file "success-estimation-demo" :depends-on ("package"))))))
+     (:file "success-estimation-demo" :depends-on ("package"))
+     (:file "colloquium-demo" :depends-on ("package"))))))

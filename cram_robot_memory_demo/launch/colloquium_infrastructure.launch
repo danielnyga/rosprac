@@ -1,0 +1,7 @@
+<launch>
+  <include file="$(find spatial_relations_demo)/launch/demo.launch"/>
+  <node pkg="cram_robot_memory" type="start_robot_memory_service" name="robot_meory" output="screen" cwd="node"/>
+  <node pkg="cram_robot_memory" type="start_owl_memory_converter" output="screen" name="owl_memory_converter" cwd="node"/>
+  <node pkg="semrec" type="semrec" name="semrec_ros" args="--config=$(find cram_robot_memory)/config/semrec.conf" output="screen"/>
+  <node pkg="mongodb_log" type="mongodb_log" args="--mongodb-host=localhost --mongodb-port=27017 --mongodb-name=robot_memory_exp-0 /logged_designators" output="screen" name="mongodb_log"/>
+</launch>

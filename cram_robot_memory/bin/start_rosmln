@@ -4,4 +4,4 @@
 # That in turn is necessary to get a defined path for the learned mlns
 # since roslaunch does not allow to start a script in a foreign package
 
-rosrun rosmln start_mln_server
+rosrun rosmln start_mln_server $@

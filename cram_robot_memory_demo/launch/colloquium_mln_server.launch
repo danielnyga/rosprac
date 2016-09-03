@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="cram_robot_memory" type="start_rosmln" name="rosmln" output="screen" cwd="node" args="-verbose"/>
+</launch>

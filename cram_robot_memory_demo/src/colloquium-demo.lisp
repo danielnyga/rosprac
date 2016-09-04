@@ -46,28 +46,36 @@
 
 (defun execute-training-plans()
   (roslisp:ros-info colloquium "training...")
-  (roslisp:ros-info colloquium "move a knife from the kitchen_sink_block to the pancake_table")
+  (roslisp:ros-info
+   colloquium
+   "move a knife from the cupboard \"kitchen_sink_block\" to the cupboard \"pancake_table\"")
   (achieve-loc-pancake-table (desig:make-designator
                               :object `((:type :knife)
                                         (:at ,(desig:make-designator
                                                :location
                                                '((:on "Cupboard")
                                                  (:name "kitchen_sink_block")))))))
-  (roslisp:ros-info colloquium "move a knife from kitchen_island to the pancake_table")
+  (roslisp:ros-info
+   colloquium
+   "move a knife from the cupboard \"kitchen_island\" to the cupboard \"pancake_table\"")
   (achieve-loc-pancake-table (desig:make-designator
                               :object `((:type :knife)
                                         (:at ,(desig:make-designator
                                                :location
                                                '((:on "Cupboard")
                                                  (:name "kitchen_island")))))))
-  (roslisp:ros-info colloquium "move a knife from the kitchen_sink_block to the pancake_table")
+  (roslisp:ros-info
+   colloquium
+   "move a knife from the cupboard \"kitchen_sink_block\" to the cupboard \"pancake_table\"")
   (achieve-loc-pancake-table (desig:make-designator
                               :object `((:type :knife)
                                         (:at ,(desig:make-designator
                                                :location
                                                '((:on "Cupboard")
                                                  (:name "kitchen_sink_block")))))))
-  (roslisp:ros-info colloquium "move a mug from the kitchen_sink_block to the pancake_table")
+  (roslisp:ros-info
+   colloquium
+   "move a mug from the cupboard \"kitchen_sink_block\" to the cupboard \"pancake_table\"")
   (achieve-loc-pancake-table (desig:make-designator
                               :object `((:type :mug)
                                         (:at ,(desig:make-designator
@@ -79,6 +87,7 @@
 
 (defun execute-test-plans()
   (roslisp:ros-info colloquium "finished learning!")
+  (break)
   (roslisp:ros-info
    colloquium
    "objects on the kitchen_sink_block:~C~a"
@@ -110,6 +119,7 @@
   (break)
   (let ((knife (desig:make-designator :object '((:type :knife) (:color :blue)))))
     (roslisp:ros-info colloquium "completing designator ~a" knife)
+    (break)
     (cram-robot-memory:complete-with-next-on-failure
      #'(lambda(designator)
          (roslisp:ros-info colloquium "trying to get the following object in hand: ~C~a"

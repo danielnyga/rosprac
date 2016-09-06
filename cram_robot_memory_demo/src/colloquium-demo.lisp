@@ -88,7 +88,7 @@
 (defun print-objects-at-cupboard(name)
   (roslisp:ros-info
    colloquium
-   "objects on the ~a:~C~a"
+   "objects on the cupboard \"~a\":~C~a"
    name #\linefeed
    (cram-robot-memory:execute-general-query
     "propertyValue(Obj, ?v)"
@@ -107,7 +107,7 @@
 (defun print-failure-probabilities-for-moving-a-knife()
   (roslisp:ros-info
    colloquium
-   "failure probabilities for moving a knife to the pancake_table:~C~a"
+   "failure probabilities for moving a knife to the cupboard \"pancake_table\":~C~a"
    #\linefeed
    (cram-robot-memory:get-failure-probability
     "ACHIEVE"

@@ -85,13 +85,11 @@
   (roslisp:ros-info colloquium "finished training!")
   (roslisp:ros-info colloquium "learning..."))
 
-(defun execute-test-plans()
-  (roslisp:ros-info colloquium "finished learning!")
-  (break)
+(defun print-objects-at-cupboard(name)
   (roslisp:ros-info
    colloquium
-   "objects on the kitchen_sink_block:~C~a"
-   #\linefeed
+   "objects on the ~a:~C~a"
+   name #\linefeed
    (cram-robot-memory:execute-general-query
     "propertyValue(Obj, ?v)"
     :result-index 1
@@ -103,9 +101,10 @@
                   ,(desig:make-designator
                     :object
                     `((:at ,(desig:make-designator
-                             :location '((:on "Cupboard")
-                                         (:name "kitchen_sink_block"))))))))))
-  (break)
+                             :location `((:on "Cupboard")
+                                         (:name ,name)))))))))))  
+
+(defun print-failure-probabilities-for-moving-a-knife()
   (roslisp:ros-info
    colloquium
    "failure probabilities for moving a knife to the pancake_table:~C~a"
@@ -115,8 +114,9 @@
     `(("?OBJ",(desig:make-designator :object `((:type :knife)))
        "?LOC",(desig:make-designator
                :location `((:on "Cupboard") (:name "pancake_table")))))
-    "LOC ?OBJ ?LOC"))
-  (break)
+    "LOC ?OBJ ?LOC")))
+
+(defun complete-designator-and-get-blue-knife-in-hand()
   (let ((knife (desig:make-designator :object '((:type :knife) (:color :blue)))))
     (roslisp:ros-info colloquium "completing designator ~a" knife)
     (break)
@@ -129,5 +129,17 @@
      knife
      "ACHIEVE"
      "OBJECT-IN-HAND ?OBJ"
-     "?OBJ")
-    (roslisp:ros-info colloquium "finished!")))
+     "?OBJ")))
+
+  
+(defun execute-test-plans()
+  (roslisp:ros-info colloquium "finished learning!")
+  (break)
+  (print-objects-at-cupboard "kitchen_sink_block")
+  (break)
+  (print-objects-at-cupboard "kitchen_table")
+  (break)
+  (print-failure-probabilities-for-moving-a-knife)
+  (break)
+  (complete-designator-and-get-blue-knife-in-hand)
+  (roslisp:ros-info colloquium "finished!"))

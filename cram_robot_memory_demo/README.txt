@@ -4,6 +4,11 @@ To execute the demos, all necessary ros nodes have to be started. Therefore, the
 
 roslaunch cram_robot_memory_demo demo.launch
 
+optionally, the mln server can be started in a different tab by splitting the launch file in:
+
+roslaunch cram_robot_memory_demo colloquium_infrastructure.launch 
+roslaunch cram_robot_memory_demo colloquium_mln_server.launch 
+
 Then, in roslisp_repl, one has to execute the following commands:
 
 (ros-load:load-system "cram_robot_memory_demo" :cram-robot-memory-demo)
@@ -14,5 +19,10 @@ or
 (ros-load:load-system "cram_robot_memory_demo" :cram-robot-memory-demo)
 (cram-robot-memory-demo:execute-success-estimation-demo)
 
+or 
+
+(cram-robot-memory-demo:execute-colloquium-demo)
+
 In the "perceive and grasp mug demo", the PR2 is told to perceive a mug twice at the kitchen_sink_block_counter_top and once at the pancake_table during in a training phase.  Moreover, it is told to grasp an object given a handle in the training phase.  Afterwards, in the test phase, it infers the most likely completion for perceiving the mug and tries to find it until it has been found on the pancake_table.  Since the PR2 first looks at the kitchen_sink_block, the completion was successful. Then, it infers the completion for grasping based on that designator and grasps the mug.
 In the "success estimation" demo, the PR2 is told to grasp a fork and a mug at different locations during a training phase. Some of the grasp attempts will fail.  Afterwards, the success probability will be inferred in the test phase and compared with the expected probability.
+In the "colloquium demo", the PR2 moves one knife from the kitchen_sink_block (successfully), one from the kitchen_island (successfully), one from the kitchen_sink_block (unsuccessfully) and one mug from the kitchen_sink_block (sucessfully) to the pancake_table. Afterwards, different queries are executed and finally, a mug designator is completed.

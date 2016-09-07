@@ -1,6 +1,7 @@
 (in-package :cram-robot-memory-demo)
 
 (defun execute-colloquium-demo(&optional (environment :bullet))
+  "main entry point for the colloquium demo"
   (roslisp:set-debug-levels nil :fatal)
   (roslisp:set-debug-levels colloquium :info)
   (cram-robot-memory-test-utils:execute-training-and-test-functions

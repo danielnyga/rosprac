@@ -1,6 +1,0 @@
-string pracmodule
-string params
-rosmln/MLNDatabase[] input_dbs
-string[] instructions
----
-rosmln/MLNDatabase[] output_dbs

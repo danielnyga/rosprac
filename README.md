@@ -2,7 +2,7 @@ ROS bindings for the PRAC Natural-language interpreter
 ======================================================
 
 
-To runthe server:
+To run the server:
 
     $ catkin_make
     $ export PYTHONPATH=/path/to/prac/python2:$PYTHONPATH

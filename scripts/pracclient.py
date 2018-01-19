@@ -13,7 +13,7 @@ def pracquery(instructions):
         resp = pracquery_(instructions)
         return resp.steps
     except rospy.ServiceException, e:
-        print "Service call failed: %s"%e
+        print "Service call failed: %s" % e
 
 
 parser = argparse.ArgumentParser(description=' %s [instructions]' % (sys.argv[0]))
@@ -24,9 +24,9 @@ if __name__ == "__main__":
     print 'Querying PRAC for instruction(s):'
     for i in args.instructions:
         print ' - "%s"' % i
-    res = pracquery(args.instructions)
-    if not res:
+    steps = pracquery(args.instructions)
+    if not steps:
         print 'PRAC did not return any result :-('
     else:
         print 'PRAC proposes the following action steps:'
-        print json.dumps(json.loads(res.steps), indent=2)
+        print json.dumps(json.loads(steps), indent=2)

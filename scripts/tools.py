@@ -8,7 +8,8 @@ class RStorage(dict, object):
     def __init__(self, d=None, utf8=False):
         self._utf8 = utf8
         if d is not None:
-            for k, v in d.iteritems(): self[k] = v
+            for k, v in d.iteritems():
+                self[k] = v
 
     def __setattr__(self, key, value):
         if key in type(self).__slots__:

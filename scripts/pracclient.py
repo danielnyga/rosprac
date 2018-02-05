@@ -5,13 +5,22 @@ import sys
 import rospy
 from rosprac.srv import *
 
+from tools import RStorage
+
+CONSTRAINTS = {
+    '!obj_to_be_put': 'tomato.n.01'
+}
+
+ABSTRACTS = [
+    'minute.n.01'
+]
 
 def pracquery(instructions):
     rospy.wait_for_service('pracquery')
     try:
         pracquery_ = rospy.ServiceProxy('pracquery', Instructions)
-        resp = pracquery_(instructions)
-        return resp.steps
+        resp = json.loads(pracquery_(json.dumps({'instructions': instructions, 'constraints': CONSTRAINTS, 'abstracts': ABSTRACTS})).response)
+        return resp
     except rospy.ServiceException, e:
         print "Service call failed: %s" % e
 
@@ -24,9 +33,9 @@ if __name__ == "__main__":
     print 'Querying PRAC for instruction(s):'
     for i in args.instructions:
         print ' - "%s"' % i
-    steps = pracquery(args.instructions)
-    if not steps:
+    response = pracquery(args.instructions)
+    if not response:
         print 'PRAC did not return any result :-('
     else:
         print 'PRAC proposes the following action steps:'
-        print json.dumps(json.loads(steps), indent=2)
+        print json.dumps(response, indent=2)

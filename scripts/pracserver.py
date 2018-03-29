@@ -61,27 +61,26 @@ class PRACServer:
             infer.run()
             actioncores = []
             # when done, load the grounding module to ground the concepts
-            ground = self.prac.module('grounding')
-            objdb = PRACDatabase(self.prac)
-            for obj in self.worldmodel.available.values():
-                objdb << 'instance_of(%s,%s)' % (str(obj.id), str(obj.type))
-            objdb.write()
+            # ground = self.prac.module('grounding')
+            # objdb = PRACDatabase(self.prac)
+            # for obj in self.worldmodel.available.values():
+            #     objdb << 'instance_of(%s,%s)' % (str(obj.id), str(obj.type))
+            # objdb.write()
             for node in infer.steps():
-                actioncores.append(node.frame.tojson())
-                newactionroles = defaultdict(list)
-                for role, concept in ground(node, objdb, constraints):
-                    newactionroles[role].append(concept)
+                # actioncores.append(node.frame.tojson())
+                # newactionroles = defaultdict(list)
+                # for role, concept in ground(node, objdb, constraints):
+                #     newactionroles[role].append(concept)
                 pprint(node.frame.tojson())
-                actionroles = {role: object.type for role, object in node.frame.actionroles.items() if any([self.prac.wordnet.ishyponym(object.type, a) for a in abstracts])}
-                actionroles.update(newactionroles)
-                actioncores.append({'actioncore': node.frame.actioncore, 'actionroles': list(set(actionroles))})
+                # actionroles = {role: object.type for role, object in node.frame.actionroles.items() if any([self.prac.wordnet.ishyponym(object.type, a) for a in abstracts])}
+                # actionroles.update(newactionroles)
+                # actioncores.append({'actioncore': node.frame.actioncore, 'actionroles': list(set(actionroles))})
                 out('grounding finished')
                 # end grounding process
-
-            return InstructionsResponse(json.dumps(actioncores))
+            return InstructionsResponse(json.dumps([s.frame.toplan('json') for s in infer.steps()]))
         except Exception as e:
             traceback.print_exc()
-            return InstructionResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
+            return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
 
     def prac_tell(self, r):
         '''

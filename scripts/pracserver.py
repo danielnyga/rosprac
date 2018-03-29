@@ -121,6 +121,8 @@ class PRACServer:
         wm = Worldmodel(self.prac)
         for obj in RStorage(json.loads(data.data)).world:
             obj = RStorage(obj)
+            if obj.wordnet is None:
+                continue
             wm.add(Object(self.prac, obj.name, obj.wordnet))
         self.worldmodel = wm
         wmlogger.debug('---------------\nupdated world model:')

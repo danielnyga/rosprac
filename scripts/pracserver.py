@@ -119,10 +119,10 @@ class PRACServer:
 
     def update_worldmodel(self, data):
         self.worldmodel = RStorage(json.loads(data.data))
-        wmlogger.debug('---------------\nupdated world model:')
-        for obj in self.worldmodel.objs:
-            wmlogger.debug(obj.name, 'is of type', obj.type)
-        wmlogger.debug('---------------')
+        # wmlogger.debug('---------------\nupdated world model:')
+        # for obj in self.worldmodel.objs:
+        #     wmlogger.debug(obj.name, 'is of type', obj.type)
+        # wmlogger.debug('---------------')
 
 
 logs.loggers({

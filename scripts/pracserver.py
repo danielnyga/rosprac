@@ -125,10 +125,10 @@ class PRACServer:
                 continue
             wm.add(Object(self.prac, obj.name, obj.wordnet))
         self.worldmodel = wm
-        wmlogger.debug('---------------\nupdated world model:')
-        for obj in self.worldmodel.available:
-            wmlogger.debug(obj.id, 'is of type', obj.type)
-        wmlogger.debug('---------------')
+        # wmlogger.debug('---------------\nupdated world model:')
+        # for obj in self.worldmodel.available:
+        #     wmlogger.debug(obj.id, 'is of type', obj.type)
+        # wmlogger.debug('---------------')
 
 
 

@@ -5,15 +5,18 @@ import sys
 import rospy
 from rosprac.srv import *
 
-from tools import RStorage
 
 CONSTRAINTS = {
-    '!obj_to_be_put': 'tomato.n.01'
+    '!obj_to_be_put': 'apple.n.01'
 }
 
+
 ABSTRACTS = [
-    'minute.n.01'
+    'minute.n.01',
+    'number.n.02',
+    'measure.n.02'
 ]
+
 
 def pracquery(instructions):
     rospy.wait_for_service('pracquery')
@@ -27,6 +30,7 @@ def pracquery(instructions):
 
 parser = argparse.ArgumentParser(description=' %s [instructions]' % (sys.argv[0]))
 parser.add_argument("instructions", nargs='+', type=str, help="The instruction.")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()

@@ -33,19 +33,19 @@ class PRACServer:
     def __init__(self):
         self.prac = PRAC()
         self.prac.verbose = verbose
-        self.worldmodel = Worldmodel(self.prac)
+        # self.worldmodel = Worldmodel(self.prac)
         # poopulate the world model manually
-        wm = self.worldmodel
+        # wm = self.worldmodel
         # wm.add(Object(self.prac, 'juice', 'carton.n.02', props={'fill_level': 'empty.s.01'}))
-        wm.add(Object(self.prac, 'basket', 'basket.n.01'))
-        wm.add(Object(self.prac, 'fridge', 'refrigerator.n.01'))
-        wm.add(Object(self.prac, 'trash', 'ashcan.n.01'))
-        # wm.add(Object(self.prac, 'cereals-unused', 'carton.n.02', props={'used_state': 'unused.s.01'}))
-        wm.add(Object(self.prac, 'milk-box-full', 'carton.n.02', props={'fill_level': 'full.s.01'}))
-        wm.add(Object(self.prac, 'cereals-box', 'carton.n.02', props={'used_state': 'secondhand.s.01'}))
-        wm.add(Object(self.prac, 'banana', 'banana.n.02'))
-        wm.add(Object(self.prac, 'apple', 'apple.n.01'))
-        wm.add(Object(self.prac, 'orange', 'orange.n.01'))
+        # wm.add(Object(self.prac, 'basket', 'basket.n.01'))
+        # wm.add(Object(self.prac, 'fridge', 'refrigerator.n.01'))
+        # wm.add(Object(self.prac, 'trash', 'ashcan.n.01'))
+        # # wm.add(Object(self.prac, 'cereals-unused', 'carton.n.02', props={'used_state': 'unused.s.01'}))
+        # wm.add(Object(self.prac, 'milk-box-full', 'carton.n.02', props={'fill_level': 'full.s.01'}))
+        # wm.add(Object(self.prac, 'cereals-box', 'carton.n.02', props={'used_state': 'secondhand.s.01'}))
+        # wm.add(Object(self.prac, 'banana', 'banana.n.02'))
+        # wm.add(Object(self.prac, 'apple', 'apple.n.01'))
+        # wm.add(Object(self.prac, 'orange', 'orange.n.01'))
 
         rospy.init_node('pracserver')
         rospy.Subscriber("/world_model", String, self.update_worldmodel)
@@ -118,11 +118,16 @@ class PRACServer:
         rospy.spin()
 
     def update_worldmodel(self, data):
-        self.worldmodel = RStorage(json.loads(data.data))
+        wm = Worldmodel(self.prac)
+        for obj in RStorage(json.loads(data.data)).world:
+            obj = RStorage(obj)
+            wm.add(Object(self.prac, obj.name, obj.wordnet))
+        # self.worldmodel = RStorage(json.loads(data.data))
         # wmlogger.debug('---------------\nupdated world model:')
         # for obj in self.worldmodel.objs:
         #     wmlogger.debug(obj.name, 'is of type', obj.type)
         # wmlogger.debug('---------------')
+
 
 
 logs.loggers({

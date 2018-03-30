@@ -44,9 +44,7 @@ class PRACServer:
         wm.add(Object(self.prac, 'banana', 'banana.n.02'))
         wm.add(Object(self.prac, 'apple', 'apple.n.01'))
         wm.add(Object(self.prac, 'orange', 'orange.n.01'))
-        #
         # out(wm.getall(Object(self.prac, 'id', type_='container.n.01', props={'fill_level': 'empty.a.01'})))
-        #
         # out(Object(self.prac, 'orange', 'orange.n.01').matches(Object(self.prac, 'id', type_='fruit.n.01')))
         return wm
 
@@ -75,14 +73,14 @@ class PRACServer:
                 skipframe = False
                 for role, obj in frame.actionroles.items():
                     frame.actionroles[role].type = list(set([o.type for o in self.worldmodel.getall(obj)]))
-                    out(frame.toplan(), frame.actionroles[role].type)
+                    # out(frame.toplan(), frame.actionroles[role].type)
                     if not frame.actionroles[role].type:
                         if not frame.mandatory:
                             out('skipping frame', frame.toplan(), 'because it is not mandatory')
                             skipframe = True
                             break
                         else:
-                            raise Exception(frame.toplan() + ' is not executable.')
+                            raise Exception(str(frame.toplan()) + ' is not executable.')
                 if skipframe:
                     continue
                 queue = [frame]
@@ -132,8 +130,8 @@ class PRACServer:
         print 'Received request:'
         pprint(request)
         try:
-            howto = self.prac.tell(request.howto, request.constraints, save=request.save)
-            return InstructionsResponse(json.dumps(howto.tojson()))
+            self.prac.tell(request.howto, request.constraints, save=request.save)
+            return self.prac_query(json.dumps({'request': {'instructions': [request.howto]}}))
         except Exception as e:
             traceback.print_exc()
             return InstructionResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))

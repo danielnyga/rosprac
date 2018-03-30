@@ -152,18 +152,26 @@ class PRACServer:
         print "Waiting for instructions to interpret..."
         rospy.spin()
 
+    def props_from_facts(self, fact):
+        if fact in ('empty', 'full'):
+            return {'fill_level': {'empty': 'empty.a.01', 'full': 'full.a.01'}[fact]}
+        elif fact in ('used', 'unused'):
+            return {'used_state': {'used': 'secondhand.s.01', 'unused': 'unused.s.01'}[fact]}
+        else:
+            return {}
+
     def update_worldmodel(self, data):
         wm = Worldmodel(self.prac)
         for obj in RStorage(json.loads(data.data)).world:
             obj = RStorage(obj)
             if obj.wordnet is None:
                 continue
-            wm.add(Object(self.prac, obj.name, obj.wordnet))
+            wm.add(Object(self.prac, obj.name, obj.wordnet, self.props_from_facts(obj.get('fact'))))
         self.worldmodel = wm
-        # wmlogger.debug('---------------\nupdated world model:')
-        # for obj in self.worldmodel.available:
-        #     wmlogger.debug(obj.id, 'is of type', obj.type)
-        # wmlogger.debug('---------------')
+        wmlogger.debug('---------------\nupdated world model:')
+        for obj in self.worldmodel.available.values():
+            wmlogger.debug(obj.toplan())
+        wmlogger.debug('---------------')
 
 
 

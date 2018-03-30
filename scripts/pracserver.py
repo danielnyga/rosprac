@@ -104,7 +104,7 @@ class PRACServer:
                             break
                     if not modified:
                         newframes.append(f)
-            return InstructionsResponse(json.dumps([toplan(newframes, 'json')]))
+            return InstructionsResponse(json.dumps(toplan(newframes, 'json')))
         except Exception as e:
             traceback.print_exc()
             return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))

@@ -90,7 +90,7 @@ class PRACServer:
                             skipframe = True
                             break
                         else:
-                            raise Exception(f.toplan() + ' is not executable.')
+                            raise Exception(frame.toplan() + ' is not executable.')
                 if skipframe:
                     continue
                 queue = [frame]

@@ -105,7 +105,8 @@ class PRACServer:
             return InstructionsResponse(json.dumps(toplan(newframes, 'json')))
         except Exception as e:
             traceback.print_exc()
-            return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
+            return InstructionsResponse(json.dumps([]))
+            # return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
 
     def prac_tell(self, r):
         '''

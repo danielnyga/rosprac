@@ -69,14 +69,6 @@ class PRACServer:
         abstracts = map(str, request.get('abstracts', []))
         try:
             infer.run()
-            frames = []
-
-            # when done, load the grounding module to ground the concepts
-            # ground = self.prac.module('grounding')
-            # objdb = PRACDatabase(self.prac)
-            # for obj in self.worldmodel.available.values():
-            #     objdb << 'instance_of(%s,%s)' % (str(obj.id), str(obj.type))
-            # objdb.write()
             frames = [n.frame for n in infer.steps()]
             newframes = []
             for frame in frames:

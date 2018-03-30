@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import json
 import os
 import traceback
@@ -16,7 +17,7 @@ try:
     from prac.core import locations
     from prac.core.base import PRAC, PRACDatabase
     from prac.core.inference import PRACInference
-    from prac.db.ies.models import Worldmodel
+    from prac.db.ies.models import Worldmodel, toplan
     from prac.db.ies.models import Object
 except ImportError:
     print 'PRAC was not found. Please make sure it is in your $PYTHONPATH.'
@@ -30,28 +31,37 @@ wmlogger = logs.getlogger('/pracserver/worldmodel')
 
 class PRACServer:
 
+    def make_dummy_worldmodel(self):
+        # poopulate the world model manually
+        wm = Worldmodel(self.prac, cw=True)
+        wm.add(Object(self.prac, 'juice', 'carton.n.02', props={'fill_level': 'empty.a.01'}))
+        wm.add(Object(self.prac, 'basket', 'basket.n.01'))
+        wm.add(Object(self.prac, 'fridge', 'electric_refrigerator.n.01'))
+        wm.add(Object(self.prac, 'trash', 'ashcan.n.01'))
+        # wm.add(Object(self.prac, 'cereals-unused', 'carton.n.02', props={'used_state': 'unused.s.01'}))
+        wm.add(Object(self.prac, 'milk-box-full', 'carton.n.02', props={'fill_level': 'full.a.01'}))
+        wm.add(Object(self.prac, 'cereals-box', 'carton.n.02', props={'used_state': 'secondhand.s.01'}))
+        wm.add(Object(self.prac, 'banana', 'banana.n.02'))
+        wm.add(Object(self.prac, 'apple', 'apple.n.01'))
+        wm.add(Object(self.prac, 'orange', 'orange.n.01'))
+        #
+        # out(wm.getall(Object(self.prac, 'id', type_='container.n.01', props={'fill_level': 'empty.a.01'})))
+        #
+        # out(Object(self.prac, 'orange', 'orange.n.01').matches(Object(self.prac, 'id', type_='fruit.n.01')))
+        return wm
+
     def __init__(self):
         self.prac = PRAC()
         self.prac.verbose = verbose
-        # self.worldmodel = Worldmodel(self.prac)
-        # poopulate the world model manually
-        # wm = self.worldmodel
-        # wm.add(Object(self.prac, 'juice', 'carton.n.02', props={'fill_level': 'empty.s.01'}))
-        # wm.add(Object(self.prac, 'basket', 'basket.n.01'))
-        # wm.add(Object(self.prac, 'fridge', 'refrigerator.n.01'))
-        # wm.add(Object(self.prac, 'trash', 'ashcan.n.01'))
-        # # wm.add(Object(self.prac, 'cereals-unused', 'carton.n.02', props={'used_state': 'unused.s.01'}))
-        # wm.add(Object(self.prac, 'milk-box-full', 'carton.n.02', props={'fill_level': 'full.s.01'}))
-        # wm.add(Object(self.prac, 'cereals-box', 'carton.n.02', props={'used_state': 'secondhand.s.01'}))
-        # wm.add(Object(self.prac, 'banana', 'banana.n.02'))
-        # wm.add(Object(self.prac, 'apple', 'apple.n.01'))
-        # wm.add(Object(self.prac, 'orange', 'orange.n.01'))
 
         rospy.init_node('pracserver')
         rospy.Subscriber("/world_model", String, self.update_worldmodel)
 
     def prac_query(self, r):
         request = RStorage(json.loads(r.request), utf8=True)
+        if not hasattr(self, 'worldmodel'):
+            self.worldmodel = self.make_dummy_worldmodel()
+            wmlogger.warning('no worldmodel coming in from the topic. using dummy worldmodel.')
         print 'Received request:'
         pprint(request)
         infer = PRACInference(self.prac, request.instructions, self.worldmodel)
@@ -59,25 +69,50 @@ class PRACServer:
         abstracts = map(str, request.get('abstracts', []))
         try:
             infer.run()
-            actioncores = []
+            frames = []
+
             # when done, load the grounding module to ground the concepts
             # ground = self.prac.module('grounding')
             # objdb = PRACDatabase(self.prac)
             # for obj in self.worldmodel.available.values():
             #     objdb << 'instance_of(%s,%s)' % (str(obj.id), str(obj.type))
             # objdb.write()
-            for node in infer.steps():
-                # actioncores.append(node.frame.tojson())
-                # newactionroles = defaultdict(list)
-                # for role, concept in ground(node, objdb, constraints):
-                #     newactionroles[role].append(concept)
-                pprint(node.frame.tojson())
-                # actionroles = {role: object.type for role, object in node.frame.actionroles.items() if any([self.prac.wordnet.ishyponym(object.type, a) for a in abstracts])}
-                # actionroles.update(newactionroles)
-                # actioncores.append({'actioncore': node.frame.actioncore, 'actionroles': list(set(actionroles))})
-                out('grounding finished')
-                # end grounding process
-            return InstructionsResponse(json.dumps([s.frame.toplan('json') for s in infer.steps()]))
+            frames = [n.frame for n in infer.steps()]
+            newframes = []
+            for frame in frames:
+                skipframe = False
+                for role, obj in frame.actionroles.items():
+                    frame.actionroles[role].type = list(set([o.type for o in self.worldmodel.getall(obj)]))
+                    out(frame.toplan(), frame.actionroles[role].type)
+                    if not frame.actionroles[role].type:
+                        if not frame.mandatory:
+                            out('skipping frame', frame.toplan(), 'because it is not mandatory')
+                            skipframe = True
+                            break
+                        else:
+                            raise Exception(f.toplan() + ' is not executable.')
+                if skipframe:
+                    continue
+                queue = [frame]
+                while queue:
+                    f = queue.pop(0)
+                    modified = False
+                    for role, obj in f.actionroles.items():
+                        if type(obj.type) is list:
+                            f_ = None
+                            if len(obj.type) == 1:
+                                obj.type = obj.type[0]
+                            else:
+                                f_ = f.copy()
+                                f_.actionroles[role].type = obj.type.pop()
+                                modified = True
+                        if modified:
+                            queue.append(f)
+                            queue.append(f_)
+                            break
+                    if not modified:
+                        newframes.append(f)
+            return InstructionsResponse(json.dumps([toplan(newframes, 'json')]))
         except Exception as e:
             traceback.print_exc()
             return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))

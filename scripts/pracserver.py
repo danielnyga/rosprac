@@ -131,11 +131,11 @@ class PRACServer:
         print 'Received request:'
         pprint(request)
         try:
-            self.prac.tell(request.howto, request.constraints, save=request.save)
+            self.prac.tell(request.howto, request.steps, save=request.save)
             return self.prac_query(json.dumps({'request': {'instructions': [request.howto]}}))
         except Exception as e:
             traceback.print_exc()
-            return InstructionResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
+            return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
 
     def serve_forever(self):
         rospy.Service('pracquery', Instructions, self.prac_query)

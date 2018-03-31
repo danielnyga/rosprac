@@ -65,50 +65,17 @@ class PRACServer:
         print 'Received request:'
         pprint(request)
         infer = PRACInference(self.prac, request.instructions, self.worldmodel)
-        constraints = request.constraints
-        abstracts = map(str, request.get('abstracts', []))
+        grounding = self.prac.module('grounding')
+        returnval = ''
         try:
             infer.run()
-            frames = [n.frame for n in infer.steps()]
-            newframes = []
-            for frame in frames:
-                skipframe = False
-                for role, obj in frame.actionroles.items():
-                    frame.actionroles[role].type = list(set([o.type for o in self.worldmodel.getall(obj)]))
-                    # out(frame.toplan(), frame.actionroles[role].type)
-                    if not frame.actionroles[role].type:
-                        if not frame.mandatory:
-                            out('skipping frame', frame.toplan(), 'because it is not mandatory')
-                            skipframe = True
-                            break
-                        else:
-                            raise Exception(str(frame.toplan()) + ' is not executable.')
-                if skipframe:
-                    continue
-                queue = [frame]
-                while queue:
-                    f = queue.pop(0)
-                    modified = False
-                    for role, obj in f.actionroles.items():
-                        if type(obj.type) is list:
-                            f_ = None
-                            if len(obj.type) == 1:
-                                obj.type = obj.type[0]
-                            else:
-                                f_ = f.copy()
-                                f_.actionroles[role].type = obj.type.pop()
-                                modified = True
-                        if modified:
-                            queue.append(f)
-                            queue.append(f_)
-                            break
-                    if not modified:
-                        newframes.append(f)
-            return InstructionsResponse(json.dumps(toplan(newframes, 'json')))
+            gndframes = grounding(infer, self.worldmodel)
+            returnval = json.dumps(toplan(gndframes, 'json'))
+            # return InstructionsResponse(json.dumps(toplan(gndframes, 'json')))
         except Exception as e:
             traceback.print_exc()
-            return InstructionsResponse(json.dumps([]))
-            # return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))
+            returnval = json.dumps([])
+        return InstructionsResponse(returnval)
 
     def prac_tell(self, r):
         '''
@@ -133,6 +100,7 @@ class PRACServer:
         print 'Received request:'
         pprint(request)
         try:
+            out(request.howto, request.steps, save=request.save)
             self.prac.tell(request.howto, request.steps, save=request.save)
             return self.prac_query(PseudoRequest(request=json.dumps({'instructions': [request.howto]})))
         except Exception as e:

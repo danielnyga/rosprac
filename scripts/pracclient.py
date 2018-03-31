@@ -3,7 +3,7 @@ import argparse
 import json
 import sys
 import rospy
-from rosprac.srv import *
+from rosprac.srv import Instructions
 
 
 CONSTRAINTS = {
@@ -19,7 +19,7 @@ ABSTRACTS = [
 
 
 def pracquery(instructions):
-    rospy.wait_for_service('pracquery')
+    rospy.wait_for_service('pracquery', 2)
     try:
         pracquery_ = rospy.ServiceProxy('pracquery', Instructions)
         resp = json.loads(pracquery_(json.dumps({'instructions': instructions, 'constraints': CONSTRAINTS, 'abstracts': ABSTRACTS})).response)

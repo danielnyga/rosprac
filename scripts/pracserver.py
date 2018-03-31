@@ -12,6 +12,7 @@ import rospy
 from std_msgs.msg import String
 
 from tools import RStorage
+from collections import namedtuple
 
 try:
     from prac.core import locations
@@ -28,6 +29,7 @@ DEFAULT_CONFIG = os.path.join(locations.user_data, '.pracconf')
 
 wmlogger = logs.getlogger('/pracserver/worldmodel')
 
+PseudoRequest = namedtuple('Request', 'request')
 
 class PRACServer:
 
@@ -132,7 +134,7 @@ class PRACServer:
         pprint(request)
         try:
             self.prac.tell(request.howto, request.steps, save=request.save)
-            return self.prac_query(json.dumps({'request': {'instructions': [request.howto]}}))
+            return self.prac_query(PseudoRequest(json.dumps({'request': {'instructions': [request.howto]}})))
         except Exception as e:
             traceback.print_exc()
             return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))

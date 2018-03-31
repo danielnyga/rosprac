@@ -134,7 +134,7 @@ class PRACServer:
         pprint(request)
         try:
             self.prac.tell(request.howto, request.steps, save=request.save)
-            return self.prac_query(PseudoRequest(json.dumps({'request': {'instructions': [request.howto]}})))
+            return self.prac_query(PseudoRequest(request=json.dumps({'instructions': [request.howto]})))
         except Exception as e:
             traceback.print_exc()
             return InstructionsResponse(json.dumps({'error': type(e).__name__, 'reason': str(e)}))

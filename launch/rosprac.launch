@@ -1,0 +1,19 @@
+<launch>
+  <!-- Arguments -->
+  <arg name="world_channel" default="world_model" />
+  <arg name="to_prac" default="to_prac" />
+  <arg name="from_prac" default="from_prac" />
+
+  <!-- Params -->
+  <param name="world_channel" value="$(arg world_channel)" />
+  <param name="to_prac" value="$(arg to_prac)" />
+  <param name="from_prac" value="$(arg from_prac)" />
+
+  <!-- Start the Joint Trajectory Action Server -->
+  <node name="rosprac" 
+    pkg="rosprac"
+    type="pracserver.py" 
+    output="screen"
+    required="true" />
+
+</launch>

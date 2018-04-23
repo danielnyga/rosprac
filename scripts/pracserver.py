@@ -9,6 +9,7 @@ from collections import defaultdict
 from dnutils import out, logs
 from rosprac.srv import *
 import rospy
+import rosparam
 from std_msgs.msg import String
 
 from tools import RStorage
@@ -30,6 +31,7 @@ DEFAULT_CONFIG = os.path.join(locations.user_data, '.pracconf')
 wmlogger = logs.getlogger('/pracserver/worldmodel')
 
 PseudoRequest = namedtuple('Request', 'request')
+
 
 class PRACServer:
     world_model_channel = None
@@ -77,17 +79,15 @@ class PRACServer:
 
     def prac_query(self, r):
         request = json.loads(r.data)
+        print 'PRAC queried with', request
         if not hasattr(self, 'worldmodel'):
             self.worldmodel = self.make_dummy_worldmodel()
-            wmlogger.warning('no worldmodel coming in from the topic. 
-            using dummy worldmodel.')
-        print 'Received request:'
-        pprint(request)
-        infer = PRACInference(self.prac, 
+            wmlogger.warning('no worldmodel coming in from the topic.'
+                             'using dummy worldmodel.')
+        infer = PRACInference(self.prac,
                               request['instructions'], 
                               self.worldmodel)
         grounding = self.prac.module('grounding')
-        returnval = ''
         try:
             infer.run()
             gndframes = grounding(infer, self.worldmodel)
@@ -96,6 +96,7 @@ class PRACServer:
             traceback.print_exc()
             returnval = json.dumps([])
 
+        print 'PRAC replies', returnval
         self.from_prac_pub.publish(returnval)
 
     def prac_tell(self, r):
@@ -120,8 +121,7 @@ class PRACServer:
         :return:
         '''
         request = json.loads(r.data)
-        print 'Received request:'
-        pprint(request)
+        print 'PRAC received request:', request
         try:
             out(request['howto'], request['steps'], save=request['save'])
             self.prac.tell(request['howto'], 
@@ -130,9 +130,9 @@ class PRACServer:
             prac_query_string = String(data=json.dumps(
                 {'instructions': [request['howto']]}))
             self.prac_query(prac_query_string)
-
         except Exception as e:
             traceback.print_exc()
+            print 'PRAC replied []'
             self.from_prac_pub.publish(json.dumps([]))
 
     def serve_forever(self):
@@ -162,7 +162,6 @@ class PRACServer:
         for obj in self.worldmodel.available.values():
             wmlogger.debug(obj.toplan())
         wmlogger.debug('---------------')
-
 
 
 logs.loggers({

@@ -3,11 +3,13 @@
   <arg name="world_channel" default="world_model" />
   <arg name="to_prac" default="to_prac" />
   <arg name="from_prac" default="from_prac" />
+  <arg name="augment_prac" default="augment_prac" />
 
   <!-- Params -->
   <param name="world_channel" value="$(arg world_channel)" />
   <param name="to_prac" value="$(arg to_prac)" />
   <param name="from_prac" value="$(arg from_prac)" />
+  <param name="augment_prac" value="$(arg augment_prac)" />
 
   <!-- Start the Joint Trajectory Action Server -->
   <node name="rosprac" 

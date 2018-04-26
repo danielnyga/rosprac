@@ -64,7 +64,7 @@ class PRACServer:
             wmlogger.warning('no worldmodel coming in from the topic. using dummy worldmodel.')
         print 'Received request:'
         pprint(request)
-        infer = PRACInference(self.prac, request.instructions, self.worldmodel)
+        infer = PRACInference(self.prac, request.instructions, self.worldmodel, .8)
         grounding = self.prac.module('grounding')
         returnval = ''
         try:

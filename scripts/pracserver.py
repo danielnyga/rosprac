@@ -86,7 +86,8 @@ class PRACServer:
                              'using dummy worldmodel.')
         infer = PRACInference(self.prac,
                               request['instructions'], 
-                              self.worldmodel)
+                              self.worldmodel,
+                              similarity=.8)
         grounding = self.prac.module('grounding')
         try:
             infer.run()
